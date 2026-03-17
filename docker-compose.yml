@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+
+  auth:
+    build:
+      context: ./services/auth
+    ports:
+      - "4001:4001"
+
+  cars:
+    build:
+      context: ./services/cars
+    ports:
+      - "8001:8001"
+
+  reviews:
+    build:
+      context: ./services/reviews
+    ports:
+      - "4002:4002"
+
+  chatbot:
+    build:
+      context: ./services/chatbot
+    ports:
+      - "8002:8002"
+
+  ml-price:
+    build:
+      context: ./services/ml-price
+    ports:
+      - "8003:8003"
+
+  sentiment:
+    build:
+      context: ./services/sentiment
+    ports:
+      - "7071:7071"
+
