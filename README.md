@@ -5,7 +5,7 @@
 > No prior coding knowledge assumed. Read top to bottom, or jump to any section.
 
 **Built by:** Ashad Alam • Pritam Maji • Samarth Agrawal • Venkata Mahesh
-**Course:** Microsoft Azure Cloud Computing
+**Course:** CLOUD COMPUTING (ELL8287) **Instructor:** SOUGATA MUKHERJEA
 **Stack:** Next.js 14 • TypeScript • Tailwind CSS • FastAPI • LangChain • GPT-4o • Azure • Docker • Kubernetes
 
 ---
