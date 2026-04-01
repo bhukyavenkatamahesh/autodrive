@@ -1,20 +1,23 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next';
+import './globals.css';
+import Navbar from '@/components/layout/Navbar';
+import Footer from '@/components/layout/Footer';
+import ChatWidget from '@/components/chat/ChatWidget';
 
 export const metadata: Metadata = {
-  title: "AutoDrive",
-  description: "Marketplace and intelligent assistant platform for car buyers."
+  title: 'AutoDrive — AI-Powered Car Marketplace',
+  description: 'Find your perfect car with AI-powered search, fair price predictions, and instant test drive booking. 10,000+ verified cars across India.',
 };
 
-export default function RootLayout({
-  children
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Navbar />
+        <main>{children}</main>
+        <Footer />
+        <ChatWidget />
+      </body>
     </html>
   );
 }
-
