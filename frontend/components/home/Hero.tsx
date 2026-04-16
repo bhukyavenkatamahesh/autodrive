@@ -1,8 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, MapPin, ChevronDown, Sparkles } from 'lucide-react';
-import { locations } from '@/lib/mockData';
+import { getLocations } from '@/lib/api';
+import { locations as mockLocations } from '@/lib/mockData';
 
 export default function Hero() {
   const router = useRouter();
@@ -10,6 +11,13 @@ export default function Hero() {
   const [city, setCity] = useState('Delhi');
   const [cityOpen, setCityOpen] = useState(false);
   const [budget, setBudget] = useState('');
+  const [locations, setLocations] = useState<string[]>(mockLocations);
+
+  useEffect(() => {
+    getLocations()
+      .then(setLocations)
+      .catch(() => {}); // keep mock data on failure
+  }, []);
 
   const budgets = [
     'Under ₹3L', '₹3L – ₹5L', '₹5L – ₹10L',
@@ -100,7 +108,7 @@ export default function Hero() {
             {budgets.map(b => (
               <button
                 key={b}
-                onClick={() => { setBudget(b); }}
+                onClick={() => setBudget(b)}
                 className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
                   budget === b
                     ? 'bg-blue-600 border-blue-600 text-white'

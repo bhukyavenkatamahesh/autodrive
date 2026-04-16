@@ -6,12 +6,23 @@ services:
       context: ./frontend
     ports:
       - "3000:3000"
+    environment:
+      # In Docker, services talk to each other by service name (not localhost).
+      # NEXT_PUBLIC_ vars are inlined at build time, so we also need to rebuild
+      # the image if these change. For dev, defaults in api.ts (localhost) apply.
+      - NEXT_PUBLIC_CARS_API_URL=http://localhost:8001
+      - NEXT_PUBLIC_AUTH_API_URL=http://localhost:4001
+    depends_on:
+      - auth
+      - cars
 
   auth:
     build:
       context: ./services/auth
     ports:
       - "4001:4001"
+    environment:
+      - JWT_SECRET=autodrive-change-this-secret-in-production
 
   cars:
     build:
@@ -40,6 +51,6 @@ services:
   sentiment:
     build:
       context: ./services/sentiment
+    platform: linux/amd64   # Azure Functions image has no arm64 variant
     ports:
       - "7071:7071"
-

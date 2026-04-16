@@ -1,6 +1,9 @@
 'use client';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { brands } from '@/lib/mockData';
+import { getBrands } from '@/lib/api';
+import { brands as mockBrands } from '@/lib/mockData';
+import { Brand } from '@/lib/types';
 
 const brandLogos: Record<string, string> = {
   'Maruti Suzuki': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Maruti_logo.svg/200px-Maruti_logo.svg.png',
@@ -15,6 +18,14 @@ const brandLogos: Record<string, string> = {
 
 export default function BrandBar() {
   const router = useRouter();
+  const [brands, setBrands] = useState<Brand[]>(mockBrands);
+
+  useEffect(() => {
+    getBrands()
+      .then(setBrands)
+      .catch(() => {}); // keep mock data on failure
+  }, []);
+
   return (
     <section className="py-10 bg-white border-b border-slate-100">
       <div className="max-w-7xl mx-auto px-4">

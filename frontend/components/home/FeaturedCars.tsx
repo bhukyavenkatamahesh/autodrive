@@ -1,10 +1,18 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import { cars } from '@/lib/mockData';
+import { getCars } from '@/lib/api';
+import { cars as mockCars } from '@/lib/mockData';
 import CarCard from '@/components/cars/CarCard';
 
-export default function FeaturedCars() {
-  const featured = cars.slice(0, 6);
+export default async function FeaturedCars() {
+  let featured;
+  try {
+    const apiCars = await getCars();
+    featured = apiCars.slice(0, 6);
+  } catch {
+    // API not available — fall back to mock data so the page still renders
+    featured = mockCars.slice(0, 6);
+  }
 
   return (
     <section className="py-12 bg-slate-50">
