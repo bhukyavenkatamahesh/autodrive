@@ -1,16 +1,48 @@
 'use client';
-import { use, useState } from 'react';
+import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, Gauge, Fuel, Settings, Star, Users, CheckCircle, Calendar, TrendingUp, Bot, Phone, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
-import { getCarById, formatPrice, cars } from '@/lib/mockData';
+import {
+  ArrowLeft, MapPin, Gauge, Fuel, Settings, Star, Users,
+  CheckCircle, Calendar, TrendingUp, Bot, Phone,
+  ChevronLeft, ChevronRight, Sparkles,
+} from 'lucide-react';
+import { getCarById, getCars } from '@/lib/api';
+import { formatPrice } from '@/lib/mockData';
+import { Car } from '@/lib/types';
 import CarCard from '@/components/cars/CarCard';
 
 export default function CarDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const car = getCarById(id);
+
+  const [car, setCar] = useState<Car | null>(null);
+  const [similar, setSimilar] = useState<Car[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeImg, setActiveImg] = useState(0);
   const [showBooking, setShowBooking] = useState(false);
   const [booked, setBooked] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    getCarById(id)
+      .then(carData => {
+        setCar(carData);
+        if (carData) {
+          getCars({ make: carData.make })
+            .then(all => setSimilar(all.filter(c => c.id !== id).slice(0, 3)))
+            .catch(() => {});
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-slate-500">Loading…</p>
+      </div>
+    );
+  }
 
   if (!car) {
     return (
@@ -23,7 +55,6 @@ export default function CarDetailPage({ params }: { params: Promise<{ id: string
   }
 
   const images = car.images?.length ? car.images : [car.image];
-  const similar = cars.filter(c => c.id !== car.id && c.make === car.make).slice(0, 3);
   const priceDiff = car.mlPrice ? car.mlPrice - car.price : 0;
   const isDeal = priceDiff > 0;
 
@@ -149,7 +180,9 @@ export default function CarDetailPage({ params }: { params: Promise<{ id: string
                   <TrendingUp size={15} />
                   AI Fair Value: {formatPrice(car.mlPrice)}
                   <span className="font-normal text-slate-500">
-                    ({isDeal ? `₹${priceDiff.toLocaleString('en-IN')} below market` : `₹${Math.abs(priceDiff).toLocaleString('en-IN')} above market`})
+                    ({isDeal
+                      ? `₹${priceDiff.toLocaleString('en-IN')} below market`
+                      : `₹${Math.abs(priceDiff).toLocaleString('en-IN')} above market`})
                   </span>
                 </div>
                 <p className={`text-xs mt-2 ${isDeal ? 'text-green-600' : 'text-orange-600'}`}>
@@ -161,7 +194,6 @@ export default function CarDetailPage({ params }: { params: Promise<{ id: string
 
           {/* Right: Price + Actions */}
           <div className="space-y-4">
-            {/* Price card */}
             <div className="bg-white rounded-2xl border border-slate-100 p-5 sticky top-24">
               <div className="flex items-start justify-between mb-1">
                 <h2 className="text-xl font-bold text-slate-900">
@@ -191,7 +223,6 @@ export default function CarDetailPage({ params }: { params: Promise<{ id: string
                 <span className="flex items-center gap-1"><MapPin size={12} />{car.location}</span>
               </div>
 
-              {/* CTA buttons */}
               {!showBooking ? (
                 <div className="space-y-2">
                   <button

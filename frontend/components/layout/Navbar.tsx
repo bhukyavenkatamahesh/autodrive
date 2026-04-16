@@ -1,14 +1,34 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, MapPin, ChevronDown, Menu, X, Car, Bot } from 'lucide-react';
-import { locations } from '@/lib/mockData';
+import { useRouter } from 'next/navigation';
+import { Search, MapPin, ChevronDown, Menu, X, Car, Bot, LogOut, User } from 'lucide-react';
+import { getLocations } from '@/lib/api';
+import { locations as mockLocations } from '@/lib/mockData';
+import { useAuth } from '@/lib/authContext';
 
 export default function Navbar() {
+  const router = useRouter();
+  const { user, logout } = useAuth();
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState('Delhi');
   const [cityOpen, setCityOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [locations, setLocations] = useState<string[]>(mockLocations);
+
+  useEffect(() => {
+    getLocations()
+      .then(setLocations)
+      .catch(() => {}); // keep mock data on failure
+  }, []);
+
+  function handleSearch() {
+    if (searchQuery.trim()) {
+      router.push(`/cars?search=${encodeURIComponent(searchQuery)}`);
+    }
+  }
 
   return (
     <header className="sticky top-0 z-50 bg-white shadow-sm border-b border-slate-100">
@@ -62,11 +82,7 @@ export default function Navbar() {
               placeholder="Search by brand, model (e.g. Swift, Creta)"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && searchQuery.trim()) {
-                  window.location.href = `/cars?search=${encodeURIComponent(searchQuery)}`;
-                }
-              }}
+              onKeyDown={e => e.key === 'Enter' && handleSearch()}
               className="flex-1 bg-transparent py-2.5 text-sm text-slate-700 outline-none placeholder-slate-400"
             />
           </div>
@@ -85,20 +101,54 @@ export default function Navbar() {
             </Link>
           </nav>
 
-          {/* Auth buttons */}
+          {/* Auth section */}
           <div className="flex items-center gap-2 ml-auto lg:ml-0 flex-shrink-0">
-            <Link
-              href="/login"
-              className="hidden md:block text-sm font-medium text-slate-700 hover:text-blue-600 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors"
-            >
-              Login
-            </Link>
-            <Link
-              href="/register"
-              className="text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-colors"
-            >
-              Register
-            </Link>
+            {user ? (
+              // Logged-in: show user name + dropdown
+              <div className="relative">
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-sm text-slate-700 transition-colors"
+                >
+                  <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                    <User size={13} className="text-white" />
+                  </div>
+                  <span className="font-medium max-w-24 truncate">{user.name}</span>
+                  <ChevronDown size={13} />
+                </button>
+                {userMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50">
+                    <div className="px-4 py-2 border-b border-slate-100 mb-1">
+                      <p className="text-sm font-semibold text-slate-900 truncate">{user.name}</p>
+                      <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                    </div>
+                    <button
+                      onClick={() => { logout(); setUserMenuOpen(false); }}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut size={14} />
+                      Sign Out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              // Logged-out: Login + Register
+              <>
+                <Link
+                  href="/login"
+                  className="hidden md:block text-sm font-medium text-slate-700 hover:text-blue-600 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/register"
+                  className="text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-colors"
+                >
+                  Register
+                </Link>
+              </>
+            )}
             <button
               className="md:hidden p-2 text-slate-600 hover:text-blue-600"
               onClick={() => setMenuOpen(!menuOpen)}
@@ -116,12 +166,28 @@ export default function Navbar() {
               <input
                 type="text"
                 placeholder="Search cars..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSearch()}
                 className="flex-1 bg-transparent py-2.5 text-sm outline-none"
               />
             </div>
             <Link href="/cars" className="block px-3 py-2 text-sm font-medium text-slate-700 hover:text-blue-600">Used Cars</Link>
             <Link href="/cars?fuelType=Electric" className="block px-3 py-2 text-sm font-medium text-slate-700 hover:text-blue-600">Electric Cars</Link>
             <Link href="/chat" className="block px-3 py-2 text-sm font-medium text-blue-600">AI Chat</Link>
+            {user ? (
+              <button
+                onClick={logout}
+                className="block w-full text-left px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700"
+              >
+                Sign Out ({user.name})
+              </button>
+            ) : (
+              <>
+                <Link href="/login" className="block px-3 py-2 text-sm font-medium text-slate-700 hover:text-blue-600">Login</Link>
+                <Link href="/register" className="block px-3 py-2 text-sm font-medium text-blue-600">Register</Link>
+              </>
+            )}
           </div>
         )}
       </div>
