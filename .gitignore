@@ -17,4 +17,11 @@ Thumbs.db
 *.tfstate.*
 .env
 .env.*
+!.env.example
+
+# Claude Code working directory (local only)
+.claude/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
 

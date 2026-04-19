@@ -1,6 +1,8 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Bot, X, Send, Minimize2, ChevronDown } from 'lucide-react';
+import { streamChat, ChatAction } from '@/lib/api';
 import { Message } from '@/lib/types';
 
 const SUGGESTIONS = [
@@ -10,39 +12,48 @@ const SUGGESTIONS = [
   'Compare Swift vs Baleno',
 ];
 
-const BOT_RESPONSES: Record<string, string> = {
-  default: "I'm AutoDrive AI, powered by GPT-4o! I can help you find the perfect car, compare models, check prices, and book test drives. What are you looking for?",
-  suv: "Great choice! Here are some popular SUVs under ₹15L:\n\n🚗 **Hyundai Creta** – ₹14.5L, 8,000 km, Diesel AT\n🚗 **Kia Seltos** – ₹13.5L, 18,000 km, Petrol AT\n🚗 **MG Hector** – ₹11.5L, 55,000 km, Petrol MT\n\nAll verified, single owner. Want me to book a test drive for any of these?",
-  electric: "Electric cars are the future! Top picks:\n\n⚡ **Tata Nexon EV** – ₹16.8L, 437km range, just 12,000 km\n⚡ Home charger included, 0 emission\n⚡ AI Price: ₹16.2L (good deal!)\n\nElectric cars save ~₹1.5L/year on fuel. Want more details?",
-  family: "For a 7-seater family car, I recommend:\n\n🚐 **Toyota Fortuner** – ₹32L, Diesel AT, 42,000 km\n🚐 **Mahindra XUV700** – ₹22L, Diesel AT, 7-seater\n\nBoth are excellent family SUVs with ADAS safety features. Which fits your budget better?",
-  compare: "Swift vs Baleno comparison:\n\n| Feature | Swift | Baleno |\n|---------|-------|--------|\n| Price | ₹7.5L | ₹8.5L |\n| Boot | 268L | 318L |\n| Mileage | 23 kmpl | 22 kmpl |\n| Seating | 5 | 5 |\n\nBaleno offers more space. Swift is sportier. Which matters more to you?",
+const GREETING =
+  "I'm AutoDrive AI. I can help you find the perfect car, compare models, check prices, and book test drives. What are you looking for?";
+
+const FALLBACK_RESPONSES: Record<string, string> = {
+  suv:
+    "Here are some popular SUVs under ₹15L:\n\n🚗 **Hyundai Creta** – ₹14.5L, 8,000 km, Diesel AT\n🚗 **Kia Seltos** – ₹13.5L, 18,000 km, Petrol AT\n🚗 **MG Hector** – ₹11.5L, 55,000 km, Petrol MT\n\nWant me to book a test drive for any of these?",
+  electric:
+    "Electric top picks:\n\n⚡ **Tata Nexon EV** – ₹16.8L, 437km range, 12,000 km\n⚡ Home charger included, zero emissions\n⚡ AI fair value: ₹16.2L (good deal!)\n\nElectric cars save ~₹1.5L/year on fuel. Want more details?",
+  family:
+    'For a 7-seater family car:\n\n🚐 **Toyota Fortuner** – ₹32L, Diesel AT, 42,000 km\n🚐 **Mahindra XUV700** – ₹22L, Diesel AT\n\nBoth have ADAS safety features. Which fits your budget?',
+  compare:
+    'Swift vs Baleno:\n\n| Feature | Swift | Baleno |\n|---|---|---|\n| Price | ₹7.5L | ₹8.5L |\n| Boot | 268L | 318L |\n| Mileage | 23 kmpl | 22 kmpl |\n\nBaleno is more spacious, Swift is sportier. What matters more?',
 };
 
-function getResponse(msg: string): string {
+function fallbackReply(msg: string): string {
   const lower = msg.toLowerCase();
-  if (lower.includes('suv') || lower.includes('15l') || lower.includes('15 l')) return BOT_RESPONSES.suv;
-  if (lower.includes('electric') || lower.includes('ev')) return BOT_RESPONSES.electric;
-  if (lower.includes('family') || lower.includes('7 seat') || lower.includes('seven')) return BOT_RESPONSES.family;
-  if (lower.includes('compare') || lower.includes('swift') || lower.includes('baleno')) return BOT_RESPONSES.compare;
-  if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey')) {
-    return "Hello! 👋 I'm AutoDrive AI. I can help you find the perfect car based on your budget, needs, and preferences. What are you looking for today?";
-  }
-  if (lower.includes('price') || lower.includes('budget')) {
-    return "I can help you find cars in any budget! Our AI price predictor (XGBoost ML) also shows you the fair market value so you never overpay. What's your budget range?";
-  }
-  return `I found several options matching "${msg}". Our AI-powered search suggests checking the Cars page with this filter applied. Want me to show you the top 3 matches?`;
+  if (lower.includes('suv') || lower.includes('15l')) return FALLBACK_RESPONSES.suv;
+  if (lower.includes('electric') || lower.includes('ev')) return FALLBACK_RESPONSES.electric;
+  if (lower.includes('family') || lower.includes('7 seat')) return FALLBACK_RESPONSES.family;
+  if (lower.includes('compare') || lower.includes('swift') || lower.includes('baleno'))
+    return FALLBACK_RESPONSES.compare;
+  if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey'))
+    return "Hello! 👋 What kind of car are you looking for today?";
+  return `I'd recommend checking our cars page with filters that match "${msg}". Would you like me to help narrow it down?`;
 }
 
 export default function ChatWidget() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: BOT_RESPONSES.default },
+    { role: 'assistant', content: GREETING },
   ]);
-  const [typing, setTyping] = useState(false);
+  const [streaming, setStreaming] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const sessionRef = useRef<string>(
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2),
+  );
 
   useEffect(() => {
     if (open && !minimized) {
@@ -51,18 +62,66 @@ export default function ChatWidget() {
     }
   }, [messages, open, minimized]);
 
-  async function sendMessage(text: string) {
-    if (!text.trim()) return;
-    const userMsg = text.trim();
-    setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
-    setTyping(true);
-
-    await new Promise(r => setTimeout(r, 800 + Math.random() * 600));
-    const response = getResponse(userMsg);
-    setTyping(false);
-    setMessages(prev => [...prev, { role: 'assistant', content: response }]);
+  function handleAction(action: ChatAction) {
+    if (action.type === 'BOOK_TEST_DRIVE' && action.car_id) {
+      router.push(`/cars/${action.car_id}?book=true`);
+    } else if (action.type === 'VIEW_CAR' && action.car_id) {
+      router.push(`/cars/${action.car_id}`);
+    }
   }
+
+  async function sendMessage(text: string) {
+    const userMsg = text.trim();
+    if (!userMsg || streaming) return;
+    setInput('');
+
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', content: userMsg },
+      { role: 'assistant', content: '' },
+    ]);
+    setStreaming(true);
+
+    let streamed = false;
+    await streamChat(userMsg, sessionRef.current, {
+      onToken: (token) => {
+        streamed = true;
+        setMessages((prev) => {
+          const next = [...prev];
+          next[next.length - 1] = {
+            role: 'assistant',
+            content: next[next.length - 1].content + token,
+          };
+          return next;
+        });
+      },
+      onAction: handleAction,
+      onError: () => {
+        // chatbot offline — drop the empty placeholder and use local fallback
+        const reply = fallbackReply(userMsg);
+        setMessages((prev) => {
+          const next = [...prev];
+          next[next.length - 1] = { role: 'assistant', content: reply };
+          return next;
+        });
+      },
+      onDone: () => {
+        if (!streamed) {
+          // service responded but emitted nothing useful — fallback
+          const reply = fallbackReply(userMsg);
+          setMessages((prev) => {
+            const next = [...prev];
+            next[next.length - 1] = { role: 'assistant', content: reply };
+            return next;
+          });
+        }
+      },
+    });
+    setStreaming(false);
+  }
+
+  const last = messages[messages.length - 1];
+  const showTypingDots = streaming && last?.role === 'assistant' && last.content === '';
 
   return (
     <>
@@ -95,7 +154,7 @@ export default function ChatWidget() {
                 <p className="text-white font-semibold text-sm">AutoDrive AI</p>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 bg-green-400 rounded-full" />
-                  <p className="text-blue-200 text-xs">GPT-4o • Always online</p>
+                  <p className="text-blue-200 text-xs">RAG + GPT-4o</p>
                 </div>
               </div>
             </div>
@@ -133,11 +192,11 @@ export default function ChatWidget() {
                           : 'bg-slate-100 text-slate-800 rounded-tl-sm'
                       }`}
                     >
-                      {msg.content}
+                      {msg.content || (msg.role === 'assistant' && streaming && i === messages.length - 1 ? '…' : '')}
                     </div>
                   </div>
                 ))}
-                {typing && (
+                {showTypingDots && (
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 bg-blue-100 rounded-full flex items-center justify-center">
                       <Bot size={14} className="text-blue-600" />
@@ -152,10 +211,10 @@ export default function ChatWidget() {
                 <div ref={bottomRef} />
               </div>
 
-              {/* Suggestions */}
+              {/* Suggestions (only at start) */}
               {messages.length === 1 && (
                 <div className="px-4 pb-2 flex flex-wrap gap-1.5">
-                  {SUGGESTIONS.map(s => (
+                  {SUGGESTIONS.map((s) => (
                     <button
                       key={s}
                       onClick={() => sendMessage(s)}
@@ -173,14 +232,14 @@ export default function ChatWidget() {
                   ref={inputRef}
                   type="text"
                   value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && !typing && sendMessage(input)}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !streaming && sendMessage(input)}
                   placeholder="Ask about any car..."
                   className="flex-1 px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <button
                   onClick={() => sendMessage(input)}
-                  disabled={!input.trim() || typing}
+                  disabled={!input.trim() || streaming}
                   className="w-9 h-9 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl flex items-center justify-center transition-colors flex-shrink-0"
                 >
                   <Send size={15} />

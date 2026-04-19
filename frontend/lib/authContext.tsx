@@ -1,12 +1,6 @@
 'use client';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { loginUser, registerUser } from './api';
-
-interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-}
+import { loginUser, registerUser, logoutUser, AuthUser } from './api';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -53,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function logout() {
+    if (token) logoutUser(token);
     setToken(null);
     setUser(null);
     localStorage.removeItem('auth_token');

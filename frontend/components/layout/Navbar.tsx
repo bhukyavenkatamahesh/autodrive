@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, MapPin, ChevronDown, Menu, X, Car, Bot, LogOut, User } from 'lucide-react';
+import { Search, MapPin, ChevronDown, Menu, X, Car, Bot, LogOut, User, LayoutDashboard } from 'lucide-react';
 import { getLocations } from '@/lib/api';
 import { locations as mockLocations } from '@/lib/mockData';
 import { useAuth } from '@/lib/authContext';
@@ -117,11 +117,19 @@ export default function Navbar() {
                   <ChevronDown size={13} />
                 </button>
                 {userMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50">
+                  <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50">
                     <div className="px-4 py-2 border-b border-slate-100 mb-1">
                       <p className="text-sm font-semibold text-slate-900 truncate">{user.name}</p>
                       <p className="text-xs text-slate-500 truncate">{user.email}</p>
                     </div>
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                    >
+                      <LayoutDashboard size={14} />
+                      My bookings
+                    </Link>
                     <button
                       onClick={() => { logout(); setUserMenuOpen(false); }}
                       className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
@@ -176,12 +184,15 @@ export default function Navbar() {
             <Link href="/cars?fuelType=Electric" className="block px-3 py-2 text-sm font-medium text-slate-700 hover:text-blue-600">Electric Cars</Link>
             <Link href="/chat" className="block px-3 py-2 text-sm font-medium text-blue-600">AI Chat</Link>
             {user ? (
-              <button
-                onClick={logout}
-                className="block w-full text-left px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700"
-              >
-                Sign Out ({user.name})
-              </button>
+              <>
+                <Link href="/dashboard" className="block px-3 py-2 text-sm font-medium text-slate-700 hover:text-blue-600">My bookings</Link>
+                <button
+                  onClick={logout}
+                  className="block w-full text-left px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700"
+                >
+                  Sign Out ({user.name})
+                </button>
+              </>
             ) : (
               <>
                 <Link href="/login" className="block px-3 py-2 text-sm font-medium text-slate-700 hover:text-blue-600">Login</Link>

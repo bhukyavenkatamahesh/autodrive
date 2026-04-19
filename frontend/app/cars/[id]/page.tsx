@@ -1,24 +1,25 @@
 'use client';
-import { use, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  ArrowLeft, MapPin, Gauge, Fuel, Settings, Star, Users,
-  CheckCircle, Calendar, TrendingUp, Bot, Phone,
-  ChevronLeft, ChevronRight, Sparkles,
+  MapPin, Gauge, Fuel, Settings, Star, Users,
+  Calendar, TrendingUp, Bot, Phone,
+  ChevronLeft, ChevronRight, Sparkles, CheckCircle,
 } from 'lucide-react';
 import { getCarById, getCars } from '@/lib/api';
 import { formatPrice } from '@/lib/mockData';
 import { Car } from '@/lib/types';
 import CarCard from '@/components/cars/CarCard';
+import BookingModal from '@/components/booking/BookingModal';
 
-export default function CarDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function CarDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
 
   const [car, setCar] = useState<Car | null>(null);
   const [similar, setSimilar] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeImg, setActiveImg] = useState(0);
-  const [showBooking, setShowBooking] = useState(false);
+  const [bookingOpen, setBookingOpen] = useState(false);
   const [booked, setBooked] = useState(false);
 
   useEffect(() => {
@@ -223,10 +224,24 @@ export default function CarDetailPage({ params }: { params: Promise<{ id: string
                 <span className="flex items-center gap-1"><MapPin size={12} />{car.location}</span>
               </div>
 
-              {!showBooking ? (
+              {booked ? (
+                <div className="text-center py-4">
+                  <CheckCircle size={40} className="text-green-500 mx-auto mb-3" />
+                  <p className="font-bold text-slate-900 mb-1">Test Drive Booked!</p>
+                  <p className="text-sm text-slate-500">
+                    We&apos;ll call you within 2 hours to confirm the slot.
+                  </p>
+                  <Link
+                    href="/dashboard"
+                    className="inline-block mt-3 text-sm font-semibold text-blue-600 hover:underline"
+                  >
+                    View my bookings →
+                  </Link>
+                </div>
+              ) : (
                 <div className="space-y-2">
                   <button
-                    onClick={() => setShowBooking(true)}
+                    onClick={() => setBookingOpen(true)}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors"
                   >
                     Book Test Drive
@@ -243,40 +258,20 @@ export default function CarDetailPage({ params }: { params: Promise<{ id: string
                     Contact Seller
                   </button>
                 </div>
-              ) : booked ? (
-                <div className="text-center py-4">
-                  <CheckCircle size={40} className="text-green-500 mx-auto mb-3" />
-                  <p className="font-bold text-slate-900 mb-1">Test Drive Booked!</p>
-                  <p className="text-sm text-slate-500">Our team will call you within 2 hours to confirm the slot.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-slate-800">Book Test Drive</h4>
-                  <input type="text" placeholder="Your name" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  <input type="tel" placeholder="Phone number" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  <select className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-600">
-                    <option>Select preferred time</option>
-                    <option>Tomorrow 10AM – 12PM</option>
-                    <option>Tomorrow 2PM – 5PM</option>
-                    <option>Day after 10AM – 12PM</option>
-                    <option>Weekend slot</option>
-                  </select>
-                  <button
-                    onClick={() => setBooked(true)}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors"
-                  >
-                    Confirm Booking
-                  </button>
-                  <button onClick={() => setShowBooking(false)} className="w-full text-sm text-slate-500 hover:text-slate-700">
-                    Cancel
-                  </button>
-                </div>
               )}
 
               <p className="text-xs text-slate-400 text-center mt-3">Free • No obligation • Cancel anytime</p>
             </div>
           </div>
         </div>
+
+        <BookingModal
+          carId={car.id}
+          carLabel={`${car.year} ${car.make} ${car.model}`}
+          open={bookingOpen}
+          onClose={() => setBookingOpen(false)}
+          onSuccess={() => setBooked(true)}
+        />
 
         {/* Similar cars */}
         {similar.length > 0 && (

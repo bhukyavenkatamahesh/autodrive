@@ -1,66 +1,57 @@
 # main.py — the Cars Service API
 #
-# HOW FastAPI WORKS:
-#   1. You create an `app` object
-#   2. You define Python functions
-#   3. You attach HTTP methods + URLs to those functions using decorators:
-#        @app.get("/cars")   → responds to GET http://localhost:8001/cars
-#        @app.get("/cars/{id}") → the {id} part is a "path parameter"
-#   4. FastAPI automatically converts Python dicts/objects to JSON responses
-#
-# WHAT IS REST?
-#   REST is a convention for how to design APIs using HTTP:
-#     GET    → read data          (safe, no side effects)
-#     POST   → create new data    (creates something)
-#     PUT    → update data        (replaces something)
-#     DELETE → delete data        (removes something)
-#   URLs should be nouns (things): /cars, /cars/1, /reviews
-#   NOT verbs: /getCars, /deleteReview
-#
-# QUERY PARAMETERS vs PATH PARAMETERS:
-#   Path param:  /cars/1          → specific resource, the ID is IN the URL
-#   Query param: /cars?make=Honda → filter/search, comes after the `?`
+# Endpoints:
+#   GET    /cars                        list with optional filters
+#   GET    /cars/{car_id}               single car
+#   GET    /brands                      list of brands
+#   GET    /locations                   list of cities
+#   POST   /cars/{car_id}/book          create a booking (auth required)
+#   GET    /cars/{car_id}/bookings      bookings for a car (auth required)
+#   GET    /bookings/me                 current user's bookings (auth required)
+#   GET    /health                      liveness probe
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
 from .models import Car
 from .data import CARS, BRANDS, LOCATIONS
+from .auth import require_user, AuthUser
+from .bookings import (
+    BookingRequest,
+    Booking,
+    create_booking,
+    find_conflict,
+    bookings_for_user,
+    bookings_for_car,
+)
 
-# Create the FastAPI application
-# title and description show up at http://localhost:8001/docs (auto-generated docs!)
+
 app = FastAPI(
     title="AutoDrive Cars Service",
-    description="API for listing, filtering, and retrieving used car listings.",
-    version="1.0.0",
+    description="API for listing, filtering, retrieving car listings, and booking test drives.",
+    version="1.1.0",
 )
 
-# CORS = Cross-Origin Resource Sharing
-# WHY: Browsers block frontend code from talking to a different domain/port by default.
-# Our frontend runs on port 3000, this API on port 8001 — different ports = different "origin".
-# This middleware tells the browser: "it's okay, allow requests from the frontend."
+# CORS — allow the Next.js frontend to talk to us directly from the browser.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # only allow our frontend
-    allow_methods=["GET", "POST"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    allow_credentials=True,
 )
 
 
-# ─── ENDPOINTS ────────────────────────────────────────────────────────────────
+# ─── PUBLIC ENDPOINTS ─────────────────────────────────────────────────────────
 
 @app.get("/health")
 def healthcheck() -> dict[str, str]:
-    """Simple health check — used by Docker/Kubernetes to know the service is alive."""
     return {"service": "cars", "status": "ok"}
 
 
 @app.get("/cars", response_model=list[Car])
 def list_cars(
-    # Query parameters — all optional filters from the frontend
-    # Query(...) means "read this from the URL query string"
-    # The `?` after the URL starts the query string: /cars?make=Honda&location=Delhi
     make: Optional[str] = Query(default=None),
     min_price: Optional[int] = Query(default=None),
     max_price: Optional[int] = Query(default=None),
@@ -68,76 +59,100 @@ def list_cars(
     transmission: Optional[str] = Query(default=None),
     location: Optional[str] = Query(default=None),
     search: Optional[str] = Query(default=None),
+    sort: Optional[str] = Query(default=None, description="price_asc, price_desc, year_desc, mileage_asc"),
+    limit: Optional[int] = Query(default=None, ge=1, le=100),
 ) -> list[Car]:
-    """
-    Return all cars, with optional filtering.
+    """Return all cars, with optional filtering and sorting."""
+    results = list(CARS)
 
-    Examples:
-      GET /cars                          → all 12 cars
-      GET /cars?make=Honda               → only Honda cars
-      GET /cars?fuel_type=Electric       → only EVs
-      GET /cars?min_price=500000&max_price=1000000  → budget range
-      GET /cars?search=swift             → full-text search
-    """
-    results = CARS  # start with all cars
-
-    # Apply each filter only if it was provided (not None)
     if make and make.lower() != "all":
         results = [c for c in results if c.make.lower() == make.lower()]
-
     if min_price is not None:
         results = [c for c in results if c.price >= min_price]
-
     if max_price is not None:
         results = [c for c in results if c.price <= max_price]
-
     if fuel_type and fuel_type.lower() != "all":
         results = [c for c in results if c.fuel_type.lower() == fuel_type.lower()]
-
     if transmission and transmission.lower() != "all":
         results = [c for c in results if c.transmission.lower() == transmission.lower()]
-
     if location and location.lower() not in ("all", "all cities"):
         results = [c for c in results if c.location.lower() == location.lower()]
-
     if search:
         q = search.lower()
-        results = [
-            c for c in results
-            # search across make, model, and year combined
-            if q in f"{c.make} {c.model} {c.year}".lower()
-        ]
+        results = [c for c in results if q in f"{c.make} {c.model} {c.year}".lower()]
+
+    if sort:
+        sort_map = {
+            "price_asc": (lambda c: c.price, False),
+            "price_desc": (lambda c: c.price, True),
+            "year_desc": (lambda c: c.year, True),
+            "year_asc": (lambda c: c.year, False),
+            "mileage_asc": (lambda c: c.mileage, False),
+        }
+        if sort in sort_map:
+            key, reverse = sort_map[sort]
+            results = sorted(results, key=key, reverse=reverse)
+
+    if limit:
+        results = results[:limit]
 
     return results
 
 
 @app.get("/cars/{car_id}", response_model=Car)
 def get_car(car_id: str) -> Car:
-    """
-    Return a single car by its ID.
-
-    Example:
-      GET /cars/1   → returns the Maruti Swift
-      GET /cars/99  → 404 Not Found
-    """
-    # next() finds the first matching item, or returns None if not found
+    """Return a single car by its ID, or 404 if not found."""
     car = next((c for c in CARS if c.id == car_id), None)
-
     if car is None:
-        # HTTPException sends a proper HTTP error response with a status code
-        # 404 = "Not Found" — a standard HTTP status code
         raise HTTPException(status_code=404, detail=f"Car with id '{car_id}' not found")
-
     return car
 
 
 @app.get("/brands")
 def list_brands() -> list[dict]:
-    """Return all car brands with logo and listing count."""
     return BRANDS
 
 
 @app.get("/locations")
 def list_locations() -> list[str]:
-    """Return all available cities."""
     return LOCATIONS
+
+
+# ─── BOOKING ENDPOINTS (auth required) ────────────────────────────────────────
+
+@app.post("/cars/{car_id}/book", response_model=Booking, status_code=201)
+def book_car(
+    car_id: str,
+    body: BookingRequest,
+    user: AuthUser = Depends(require_user),
+) -> Booking:
+    """Book a test drive for a specific car. Requires a valid JWT."""
+    car = next((c for c in CARS if c.id == car_id), None)
+    if car is None:
+        raise HTTPException(status_code=404, detail=f"Car with id '{car_id}' not found")
+
+    if find_conflict(car_id, body.date, body.time_slot):
+        raise HTTPException(status_code=409, detail="This time slot is already booked")
+
+    return create_booking(
+        car_id=car_id,
+        user_id=user.id,
+        user_email=user.email,
+        data=body,
+    )
+
+
+@app.get("/cars/{car_id}/bookings", response_model=list[Booking])
+def get_car_bookings(
+    car_id: str,
+    user: AuthUser = Depends(require_user),
+) -> list[Booking]:
+    """Return all confirmed bookings for a car. Auth required (internal/admin use)."""
+    return bookings_for_car(car_id)
+
+
+@app.get("/bookings/me", response_model=list[Booking])
+def my_bookings(user: AuthUser = Depends(require_user)) -> list[Booking]:
+    """Return the current authenticated user's bookings, newest first."""
+    mine = bookings_for_user(user.id)
+    return sorted(mine, key=lambda b: b.created_at, reverse=True)

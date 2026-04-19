@@ -1,5 +1,9 @@
 version: "3.9"
 
+# All JWT-issuing/validating services read JWT_SECRET from the shell or a
+# root-level .env file (see .env.example). Everything stays in sync because
+# they resolve the same variable name.
+
 services:
   frontend:
     build:
@@ -7,14 +11,17 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # In Docker, services talk to each other by service name (not localhost).
-      # NEXT_PUBLIC_ vars are inlined at build time, so we also need to rebuild
-      # the image if these change. For dev, defaults in api.ts (localhost) apply.
-      - NEXT_PUBLIC_CARS_API_URL=http://localhost:8001
-      - NEXT_PUBLIC_AUTH_API_URL=http://localhost:4001
+      # NEXT_PUBLIC_ vars are inlined at build time. They must be reachable
+      # from the browser, so we use localhost (not docker-internal hostnames).
+      NEXT_PUBLIC_CARS_API_URL: http://localhost:8001
+      NEXT_PUBLIC_AUTH_API_URL: http://localhost:4001
+      NEXT_PUBLIC_REVIEWS_API_URL: http://localhost:4002
+      NEXT_PUBLIC_CHATBOT_API_URL: http://localhost:8002
+      NEXT_PUBLIC_ML_PRICE_API_URL: http://localhost:8003
     depends_on:
       - auth
       - cars
+      - reviews
 
   auth:
     build:
@@ -22,25 +29,35 @@ services:
     ports:
       - "4001:4001"
     environment:
-      - JWT_SECRET=autodrive-change-this-secret-in-production
+      JWT_SECRET: ${JWT_SECRET:-autodrive-change-this-secret-in-production}
+      PORT: "4001"
 
   cars:
     build:
       context: ./services/cars
     ports:
       - "8001:8001"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-autodrive-change-this-secret-in-production}
 
   reviews:
     build:
       context: ./services/reviews
     ports:
       - "4002:4002"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-autodrive-change-this-secret-in-production}
+      PORT: "4002"
+      # Points at the sentiment Function App running locally.
+      SENTIMENT_API_URL: http://sentiment:7071/api/sentiment
 
   chatbot:
     build:
       context: ./services/chatbot
     ports:
       - "8002:8002"
+    environment:
+      CARS_API_URL: http://cars:8001
 
   ml-price:
     build:
