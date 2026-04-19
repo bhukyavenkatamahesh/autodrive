@@ -19,6 +19,7 @@ export interface Car {
   features?: string[];
   engineCC?: number;
   seating?: number;
+  bodyType?: string;
 }
 
 export interface Message {

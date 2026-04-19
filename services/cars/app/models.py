@@ -33,6 +33,7 @@ class Car(BaseModel):
     features: list[str] = []
     engine_cc: Optional[int] = None
     seating: Optional[int] = None
+    body_type: Optional[str] = None
 
 
 class CarCreate(BaseModel):
@@ -55,6 +56,7 @@ class CarCreate(BaseModel):
     features: list[str] = []
     engine_cc: Optional[int] = None
     seating: Optional[int] = None
+    body_type: Optional[str] = None
 
 
 class CarUpdate(BaseModel):
@@ -77,6 +79,7 @@ class CarUpdate(BaseModel):
     features: Optional[list[str]] = None
     engine_cc: Optional[int] = None
     seating: Optional[int] = None
+    body_type: Optional[str] = None
 
 
 # This model is used when someone wants to filter/search cars.
@@ -89,3 +92,29 @@ class CarFilters(BaseModel):
     transmission: Optional[str] = None
     location: Optional[str] = None
     search: Optional[str] = None        # free text search across make/model/year
+
+
+class CarsListResponse(BaseModel):
+    cars: list[Car]
+    total: int
+    page: int
+    pages: int
+
+
+class BookingCreate(BaseModel):
+    date: str
+    time_slot: str
+    name: str
+    phone: str
+
+
+class Booking(BaseModel):
+    id: str
+    car_id: str
+    user_id: str
+    date: str
+    time_slot: str
+    name: str
+    phone: str
+    status: str
+    created_at: str

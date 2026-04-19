@@ -1,6 +1,32 @@
 import Link from 'next/link';
-import { Car, Globe, Share2, ExternalLink } from 'lucide-react';
-const SocialIcons = [Globe, Share2, ExternalLink];
+import { Car } from 'lucide-react';
+
+const BUY_LINKS = [
+  { label: 'Used Cars',     href: '/cars' },
+  { label: 'Electric Cars', href: '/cars?fuelType=Electric' },
+  { label: 'SUVs',          href: '/cars?bodyType=SUV' },
+  { label: 'Sedans',        href: '/cars?bodyType=Sedan' },
+  { label: 'Hatchbacks',    href: '/cars?bodyType=Hatchback' },
+  { label: 'Luxury Cars',   href: '/cars?minPrice=2000000' },
+];
+
+const TOOL_LINKS = [
+  { label: 'AI Price Predictor', href: '/tools/valuation' },
+  { label: 'EMI Calculator',     href: '/tools/emi-calculator' },
+  { label: 'Compare Cars',       href: '/tools/compare' },
+  { label: 'Car Valuation',      href: '/tools/valuation' },
+  { label: 'AI Assistant',       href: '/chat' },
+  { label: 'Test Drive',         href: '/cars' },
+];
+
+const COMPANY_LINKS = [
+  { label: 'About Us',       href: '/about' },
+  { label: 'Careers',        href: '/careers' },
+  { label: 'Press',          href: '/press' },
+  { label: 'Blog',           href: '/blog' },
+  { label: 'Contact',        href: '/contact' },
+  { label: 'Privacy Policy', href: '/privacy' },
+];
 
 export default function Footer() {
   return (
@@ -21,9 +47,9 @@ export default function Footer() {
               AI-powered car marketplace. Find your perfect car with smart pricing and intelligent recommendations.
             </p>
             <div className="flex gap-3">
-              {SocialIcons.map((Icon, i) => (
-                <button key={i} className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-blue-600 flex items-center justify-center transition-colors">
-                  <Icon size={14} />
+              {['X', 'In', 'IG'].map(label => (
+                <button key={label} className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-blue-600 flex items-center justify-center transition-colors text-xs font-bold">
+                  {label}
                 </button>
               ))}
             </div>
@@ -33,9 +59,9 @@ export default function Footer() {
           <div>
             <h4 className="text-white font-semibold mb-4 text-sm">Buy Cars</h4>
             <ul className="space-y-2 text-sm">
-              {['Used Cars', 'Electric Cars', 'SUVs', 'Sedans', 'Hatchbacks', 'Luxury Cars'].map(item => (
-                <li key={item}>
-                  <Link href="/cars" className="hover:text-blue-400 transition-colors">{item}</Link>
+              {BUY_LINKS.map(({ label, href }) => (
+                <li key={label}>
+                  <Link href={href} className="hover:text-blue-400 transition-colors">{label}</Link>
                 </li>
               ))}
             </ul>
@@ -45,9 +71,9 @@ export default function Footer() {
           <div>
             <h4 className="text-white font-semibold mb-4 text-sm">Tools</h4>
             <ul className="space-y-2 text-sm">
-              {['AI Price Predictor', 'EMI Calculator', 'Compare Cars', 'Car Valuation', 'AI Assistant', 'Test Drive'].map(item => (
-                <li key={item}>
-                  <Link href="/chat" className="hover:text-blue-400 transition-colors">{item}</Link>
+              {TOOL_LINKS.map(({ label, href }) => (
+                <li key={label}>
+                  <Link href={href} className="hover:text-blue-400 transition-colors">{label}</Link>
                 </li>
               ))}
             </ul>
@@ -57,9 +83,9 @@ export default function Footer() {
           <div>
             <h4 className="text-white font-semibold mb-4 text-sm">Company</h4>
             <ul className="space-y-2 text-sm">
-              {['About Us', 'Careers', 'Press', 'Blog', 'Contact', 'Privacy Policy'].map(item => (
-                <li key={item}>
-                  <Link href="/" className="hover:text-blue-400 transition-colors">{item}</Link>
+              {COMPANY_LINKS.map(({ label, href }) => (
+                <li key={label}>
+                  <Link href={href} className="hover:text-blue-400 transition-colors">{label}</Link>
                 </li>
               ))}
             </ul>
@@ -67,9 +93,27 @@ export default function Footer() {
         </div>
 
         {/* Bottom */}
-        <div className="border-t border-slate-800 pt-6 flex flex-col md:flex-row justify-between items-center gap-2 text-xs">
-          <p>© 2025 AutoDrive. Built with Next.js 14 + Azure OpenAI.</p>
-          <p>Ashad Alam • Pritam Maji • Samarth Agrawal • Venkata Mahesh</p>
+        <div className="border-t border-slate-800 pt-6 flex flex-col md:flex-row justify-between items-center gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
+              <Car size={11} className="text-white" />
+            </div>
+            <span className="text-slate-500">© 2025 <span className="text-white font-semibold">AutoDrive</span>. All rights reserved.</span>
+          </div>
+          <div className="flex items-center gap-1 text-slate-600">
+            <span>Built with</span>
+            {['Next.js 14', 'FastAPI', 'PostgreSQL', 'Azure'].map((tech, i) => (
+              <span key={tech} className="flex items-center gap-1">
+                {i > 0 && <span>·</span>}
+                <span className="text-slate-400">{tech}</span>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-5">
+            <Link href="/privacy" className="hover:text-blue-400 transition-colors">Privacy</Link>
+            <Link href="/contact" className="hover:text-blue-400 transition-colors">Contact</Link>
+            <Link href="/about" className="hover:text-blue-400 transition-colors">About</Link>
+          </div>
         </div>
       </div>
     </footer>

@@ -1,3 +1,4 @@
+import json
 import os
 import time
 from contextlib import contextmanager
@@ -17,7 +18,7 @@ from .bookings import (
     find_conflict,
 )
 from .data import BRANDS, CARS, LOCATIONS
-from .models import Car, CarCreate, CarUpdate
+from .models import Car, CarCreate, CarUpdate, CarsListResponse
 
 app = FastAPI(
     title="AutoDrive Cars Service",
@@ -48,6 +49,15 @@ def get_conn():
         conn.close()
 
 
+def _jsonb(data: dict) -> dict:
+    """Serialize list/dict fields to JSON strings for psycopg3 JSONB columns."""
+    out = dict(data)
+    for key in ("images", "features"):
+        if key in out and isinstance(out[key], (list, dict)):
+            out[key] = json.dumps(out[key])
+    return out
+
+
 def _require_admin(x_user_role: Optional[str]) -> None:
     if x_user_role != "admin":
         raise HTTPException(status_code=403, detail="Admin role required")
@@ -75,6 +85,7 @@ def _row_to_car(row: dict) -> Car:
         features=row["features"] or [],
         engine_cc=row["engine_cc"],
         seating=row["seating"],
+        body_type=row.get("body_type"),
     )
 
 
@@ -106,9 +117,13 @@ def _ensure_schema_and_seed() -> None:
                           reviews INT,
                           features JSONB NOT NULL DEFAULT '[]'::jsonb,
                           engine_cc INT,
-                          seating INT
+                          seating INT,
+                          body_type TEXT
                         )
                         """
+                    )
+                    cur.execute(
+                        "ALTER TABLE cars ADD COLUMN IF NOT EXISTS body_type TEXT"
                     )
                     cur.execute("SELECT COUNT(*) FROM cars")
                     if cur.fetchone()[0] == 0:
@@ -118,14 +133,14 @@ def _ensure_schema_and_seed() -> None:
                                 INSERT INTO cars (
                                   id, make, model, year, price, ml_price, mileage, fuel_type,
                                   transmission, location, image, images, color, description,
-                                  owners, rating, reviews, features, engine_cc, seating
+                                  owners, rating, reviews, features, engine_cc, seating, body_type
                                 ) VALUES (
                                   %(id)s, %(make)s, %(model)s, %(year)s, %(price)s, %(ml_price)s, %(mileage)s, %(fuel_type)s,
                                   %(transmission)s, %(location)s, %(image)s, %(images)s, %(color)s, %(description)s,
-                                  %(owners)s, %(rating)s, %(reviews)s, %(features)s, %(engine_cc)s, %(seating)s
+                                  %(owners)s, %(rating)s, %(reviews)s, %(features)s, %(engine_cc)s, %(seating)s, %(body_type)s
                                 )
                                 """,
-                                car.model_dump(),
+                                _jsonb(car.model_dump()),
                             )
                 conn.commit()
             return
@@ -146,7 +161,7 @@ def healthcheck() -> dict[str, str]:
     return {"service": "cars", "status": "ok"}
 
 
-@app.get("/cars", response_model=list[Car])
+@app.get("/cars", response_model=CarsListResponse)
 def list_cars(
     make: Optional[str] = Query(default=None),
     min_price: Optional[int] = Query(default=None),
@@ -154,33 +169,38 @@ def list_cars(
     fuel_type: Optional[str] = Query(default=None),
     transmission: Optional[str] = Query(default=None),
     location: Optional[str] = Query(default=None),
+    body_type: Optional[str] = Query(default=None),
     search: Optional[str] = Query(default=None),
     sort: Optional[str] = Query(default=None),
+    page: int = Query(default=1, ge=1),
     limit: Optional[int] = Query(default=None, ge=1, le=100),
-) -> list[Car]:
-    where_clauses = []
-    params = {}
+) -> CarsListResponse:
+    where_clauses: list[str] = []
+    where_params: dict = {}
     if make and make.lower() != "all":
         where_clauses.append("LOWER(make) = LOWER(%(make)s)")
-        params["make"] = make
+        where_params["make"] = make
     if min_price is not None:
         where_clauses.append("price >= %(min_price)s")
-        params["min_price"] = min_price
+        where_params["min_price"] = min_price
     if max_price is not None:
         where_clauses.append("price <= %(max_price)s")
-        params["max_price"] = max_price
+        where_params["max_price"] = max_price
     if fuel_type and fuel_type.lower() != "all":
         where_clauses.append("LOWER(fuel_type) = LOWER(%(fuel_type)s)")
-        params["fuel_type"] = fuel_type
+        where_params["fuel_type"] = fuel_type
     if transmission and transmission.lower() != "all":
         where_clauses.append("LOWER(transmission) = LOWER(%(transmission)s)")
-        params["transmission"] = transmission
+        where_params["transmission"] = transmission
     if location and location.lower() not in ("all", "all cities"):
         where_clauses.append("LOWER(location) = LOWER(%(location)s)")
-        params["location"] = location
+        where_params["location"] = location
+    if body_type and body_type.lower() != "all":
+        where_clauses.append("LOWER(body_type) = LOWER(%(body_type)s)")
+        where_params["body_type"] = body_type
     if search:
         where_clauses.append("LOWER(make || ' ' || model || ' ' || year::text) LIKE LOWER(%(search)s)")
-        params["search"] = f"%{search}%"
+        where_params["search"] = f"%{search}%"
 
     order_sql = "ORDER BY id"
     if sort == "price_asc":
@@ -194,16 +214,35 @@ def list_cars(
     elif sort == "mileage_asc":
         order_sql = "ORDER BY mileage ASC"
 
-    limit_sql = ""
-    if limit:
-        limit_sql = " LIMIT %(limit)s"
-        params["limit"] = limit
-
     where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
     with get_conn() as conn:
         with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
-            cur.execute(f"SELECT * FROM cars {where_sql} {order_sql}{limit_sql}", params)
-            return [_row_to_car(row) for row in cur.fetchall()]
+            cur.execute(f"SELECT COUNT(*)::bigint AS c FROM cars {where_sql}", where_params)
+            total = int(cur.fetchone()["c"])
+
+            list_params = dict(where_params)
+            list_sql = f"SELECT * FROM cars {where_sql} {order_sql}"
+            effective_page = 1
+            list_pages = 1
+
+            if limit is not None:
+                offset = (page - 1) * limit
+                list_params["limit"] = limit
+                list_params["offset"] = offset
+                list_sql += " LIMIT %(limit)s OFFSET %(offset)s"
+                effective_page = page
+                list_pages = max(1, (total + limit - 1) // limit) if total else 1
+
+            cur.execute(list_sql, list_params)
+            cars = [_row_to_car(row) for row in cur.fetchall()]
+
+    return CarsListResponse(
+        cars=cars,
+        total=total,
+        page=effective_page,
+        pages=list_pages,
+    )
 
 
 @app.get("/cars/{car_id}", response_model=Car)
@@ -230,17 +269,17 @@ def list_locations() -> list[str]:
 @app.post("/cars", response_model=Car, status_code=201)
 def create_car(payload: CarCreate, x_user_role: Optional[str] = Header(default=None)) -> Car:
     _require_admin(x_user_role)
-    row_data = {"id": str(int(time.time() * 1000)), **payload.model_dump()}
+    row_data = _jsonb({"id": str(int(time.time() * 1000)), **payload.model_dump()})
     with get_conn() as conn:
         with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
             cur.execute(
                 """
                 INSERT INTO cars (
                   id, make, model, year, price, ml_price, mileage, fuel_type, transmission, location,
-                  image, images, color, description, owners, rating, reviews, features, engine_cc, seating
+                  image, images, color, description, owners, rating, reviews, features, engine_cc, seating, body_type
                 ) VALUES (
                   %(id)s, %(make)s, %(model)s, %(year)s, %(price)s, %(ml_price)s, %(mileage)s, %(fuel_type)s, %(transmission)s, %(location)s,
-                  %(image)s, %(images)s, %(color)s, %(description)s, %(owners)s, %(rating)s, %(reviews)s, %(features)s, %(engine_cc)s, %(seating)s
+                  %(image)s, %(images)s, %(color)s, %(description)s, %(owners)s, %(rating)s, %(reviews)s, %(features)s, %(engine_cc)s, %(seating)s, %(body_type)s
                 )
                 RETURNING *
                 """,

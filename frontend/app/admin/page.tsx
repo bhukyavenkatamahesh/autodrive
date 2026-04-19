@@ -28,6 +28,7 @@ export default function AdminPage() {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     if (!user) return;
@@ -35,19 +36,24 @@ export default function AdminPage() {
       router.push('/');
       return;
     }
-    getCars().then(setCars).catch(() => setError('Failed to load cars'));
+    getCars()
+      .then(r => setCars(r.cars))
+      .catch(() => setError('Failed to load cars'));
   }, [router, user]);
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!token || !user) return;
+    if (!form.make.trim() || !form.model.trim()) return setError('Make and Model are required');
+    if (form.price <= 0) return setError('Price must be greater than 0');
     setLoading(true);
     setError('');
+    setSuccess('');
     try {
       const created = await createCar(token, user.role, {
         ...form,
         mlPrice: undefined,
-        images: [form.image],
+        images: form.image ? [form.image] : [],
         rating: undefined,
         reviews: undefined,
         features: [],
@@ -56,6 +62,8 @@ export default function AdminPage() {
       });
       setCars(prev => [created, ...prev]);
       setForm(emptyForm);
+      setSuccess(`"${created.make} ${created.model}" added successfully!`);
+      setTimeout(() => setSuccess(''), 4000);
     } catch {
       setError('Failed to create car');
     } finally {
@@ -90,19 +98,30 @@ export default function AdminPage() {
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">Admin Cars Management</h1>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+      {success && <p className="text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">{success}</p>}
 
       <form onSubmit={onCreate} className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-white border rounded-xl p-4">
-        <input className="border rounded-lg px-3 py-2" placeholder="Make" value={form.make} onChange={e => setForm({ ...form, make: e.target.value })} />
-        <input className="border rounded-lg px-3 py-2" placeholder="Model" value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} />
+        <input required className="border rounded-lg px-3 py-2" placeholder="Make *" value={form.make} onChange={e => setForm({ ...form, make: e.target.value })} />
+        <input required className="border rounded-lg px-3 py-2" placeholder="Model *" value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} />
         <input className="border rounded-lg px-3 py-2" placeholder="Location" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} />
-        <input className="border rounded-lg px-3 py-2" placeholder="Image URL" value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} />
+        <input className="border rounded-lg px-3 py-2" placeholder="Image URL (optional)" value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} />
         <input className="border rounded-lg px-3 py-2" placeholder="Color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} />
         <input className="border rounded-lg px-3 py-2" placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
         <input type="number" className="border rounded-lg px-3 py-2" placeholder="Year" value={form.year} onChange={e => setForm({ ...form, year: Number(e.target.value) })} />
-        <input type="number" className="border rounded-lg px-3 py-2" placeholder="Price" value={form.price} onChange={e => setForm({ ...form, price: Number(e.target.value) })} />
-        <input type="number" className="border rounded-lg px-3 py-2" placeholder="Mileage" value={form.mileage} onChange={e => setForm({ ...form, mileage: Number(e.target.value) })} />
-        <input type="number" className="border rounded-lg px-3 py-2" placeholder="Owners" value={form.owners} onChange={e => setForm({ ...form, owners: Number(e.target.value) })} />
+        <input required type="number" min={1} className="border rounded-lg px-3 py-2" placeholder="Price (₹) *" value={form.price || ''} onChange={e => setForm({ ...form, price: Number(e.target.value) })} />
+        <input type="number" min={0} className="border rounded-lg px-3 py-2" placeholder="Mileage (km)" value={form.mileage || ''} onChange={e => setForm({ ...form, mileage: Number(e.target.value) })} />
+        <input type="number" min={1} className="border rounded-lg px-3 py-2" placeholder="Owners" value={form.owners} onChange={e => setForm({ ...form, owners: Number(e.target.value) })} />
+        <select className="border rounded-lg px-3 py-2 bg-white" value={form.fuelType} onChange={e => setForm({ ...form, fuelType: e.target.value as Car['fuelType'] })}>
+          <option value="Petrol">Petrol</option>
+          <option value="Diesel">Diesel</option>
+          <option value="Electric">Electric</option>
+          <option value="Hybrid">Hybrid</option>
+        </select>
+        <select className="border rounded-lg px-3 py-2 bg-white" value={form.transmission} onChange={e => setForm({ ...form, transmission: e.target.value as Car['transmission'] })}>
+          <option value="Manual">Manual</option>
+          <option value="Automatic">Automatic</option>
+        </select>
         <button disabled={loading} className="md:col-span-2 bg-blue-600 text-white rounded-lg py-2 font-medium disabled:opacity-60">
           {loading ? 'Saving...' : 'Create Car'}
         </button>

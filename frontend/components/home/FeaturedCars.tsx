@@ -7,8 +7,8 @@ import CarCard from '@/components/cars/CarCard';
 export default async function FeaturedCars() {
   let featured;
   try {
-    const apiCars = await getCars();
-    featured = apiCars.slice(0, 6);
+    const { cars: apiCars } = await getCars({ limit: 6 });
+    featured = apiCars;
   } catch {
     // API not available — fall back to mock data so the page still renders
     featured = mockCars.slice(0, 6);

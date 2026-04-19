@@ -25,9 +25,10 @@ export default function CarCard({ car }: CarCardProps) {
         {/* Image */}
         <div className="relative h-48 overflow-hidden bg-slate-100">
           <img
-            src={car.image}
+            src={car.image || 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=600&q=80'}
             alt={`${car.year} ${car.make} ${car.model}`}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=600&q=80'; }}
           />
           {/* Overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />

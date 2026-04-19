@@ -39,6 +39,7 @@ function mapCar(raw: Record<string, any>): Car {
     features: raw.features ?? undefined,
     engineCC: raw.engine_cc ?? undefined,
     seating: raw.seating ?? undefined,
+    bodyType: raw.body_type ?? undefined,
   };
 }
 
@@ -60,12 +61,21 @@ export interface CarFilters {
   fuelType?: string;
   transmission?: string;
   location?: string;
+  bodyType?: string;
   search?: string;
   sort?: string;
   limit?: number;
+  page?: number;
 }
 
-export async function getCars(filters: CarFilters = {}): Promise<Car[]> {
+export interface CarsListResponse {
+  cars: Car[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export async function getCars(filters: CarFilters = {}): Promise<CarsListResponse> {
   const params = new URLSearchParams();
   if (filters.make && filters.make !== 'All') params.set('make', filters.make);
   if (filters.minPrice) params.set('min_price', String(filters.minPrice));
@@ -73,15 +83,33 @@ export async function getCars(filters: CarFilters = {}): Promise<Car[]> {
   if (filters.fuelType && filters.fuelType !== 'All') params.set('fuel_type', filters.fuelType);
   if (filters.transmission && filters.transmission !== 'All') params.set('transmission', filters.transmission);
   if (filters.location && filters.location !== 'All Cities') params.set('location', filters.location);
+  if (filters.bodyType && filters.bodyType !== 'All') params.set('body_type', filters.bodyType);
   if (filters.search) params.set('search', filters.search);
   if (filters.sort) params.set('sort', filters.sort);
-  if (filters.limit) params.set('limit', String(filters.limit));
+  if (filters.limit != null) params.set('limit', String(filters.limit));
+  if (filters.page != null && filters.page > 0) params.set('page', String(filters.page));
 
   const qs = params.toString();
   const res = await fetch(`${CARS_API}/cars${qs ? `?${qs}` : ''}`, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Cars API error: ${res.statusText}`);
   const data = await res.json();
-  return data.map(mapCar);
+  if (Array.isArray(data)) {
+    const rows = data.map(mapCar);
+    return {
+      cars: rows,
+      total: rows.length,
+      page: 1,
+      pages: 1,
+    };
+  }
+  const rawCars = data.cars ?? [];
+  const cars = Array.isArray(rawCars) ? rawCars.map(mapCar) : [];
+  return {
+    cars,
+    total: Number(data.total ?? cars.length),
+    page: Number(data.page ?? 1),
+    pages: Number(data.pages ?? 1),
+  };
 }
 
 export async function getCarById(id: string): Promise<Car | null> {
@@ -109,7 +137,7 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
-  role?: string;
+  role: 'user' | 'admin';
 }
 
 export interface AuthResult {

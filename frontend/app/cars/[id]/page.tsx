@@ -4,16 +4,25 @@ import Link from 'next/link';
 import {
   MapPin, Gauge, Fuel, Settings, Star, Users,
   Calendar, TrendingUp, Bot, Phone,
-  ChevronLeft, ChevronRight, Sparkles, CheckCircle,
+  ChevronLeft, ChevronRight, Sparkles, CheckCircle, Trash2,
 } from 'lucide-react';
-import { getCarById, getCars } from '@/lib/api';
+import { getCarById, getCars, getReviews, postReview, deleteReview } from '@/lib/api';
+import type { ReviewsResponse } from '@/lib/api';
 import { formatPrice } from '@/lib/mockData';
 import { Car } from '@/lib/types';
 import CarCard from '@/components/cars/CarCard';
 import BookingModal from '@/components/booking/BookingModal';
+import { useAuth } from '@/lib/authContext';
+
+const SENTIMENT_COLORS: Record<string, string> = {
+  positive: 'bg-green-100 text-green-700',
+  negative: 'bg-red-100 text-red-700',
+  neutral: 'bg-slate-100 text-slate-600',
+};
 
 export default function CarDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
+  const { user, token } = useAuth();
 
   const [car, setCar] = useState<Car | null>(null);
   const [similar, setSimilar] = useState<Car[]>([]);
@@ -22,20 +31,67 @@ export default function CarDetailPage({ params }: { params: { id: string } }) {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [booked, setBooked] = useState(false);
 
+  const [reviewsData, setReviewsData] = useState<ReviewsResponse | null>(null);
+  const [newRating, setNewRating] = useState(5);
+  const [newComment, setNewComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+
   useEffect(() => {
     setLoading(true);
     getCarById(id)
       .then(carData => {
         setCar(carData);
         if (carData) {
-          getCars({ make: carData.make })
-            .then(all => setSimilar(all.filter(c => c.id !== id).slice(0, 3)))
+          getCars({ make: carData.make, limit: 12 })
+            .then(r => setSimilar(r.cars.filter(c => c.id !== id).slice(0, 3)))
+            .catch(() => {});
+          getReviews(id)
+            .then(setReviewsData)
             .catch(() => {});
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
+
+  async function handlePostReview(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token || !newComment.trim()) return;
+    setSubmitting(true);
+    setReviewError('');
+    try {
+      const review = await postReview(id, newRating, newComment.trim(), token);
+      setReviewsData(prev => prev ? {
+        ...prev,
+        reviews: [review, ...prev.reviews],
+        total: prev.total + 1,
+        averageRating: Math.round(
+          ((prev.averageRating * prev.total) + review.rating) / (prev.total + 1) * 10
+        ) / 10,
+      } : { reviews: [review], averageRating: review.rating, total: 1 });
+      setNewComment('');
+      setNewRating(5);
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : 'Failed to submit review');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDeleteReview(reviewId: string) {
+    if (!token) return;
+    try {
+      await deleteReview(reviewId, token);
+      setReviewsData(prev => prev ? {
+        ...prev,
+        reviews: prev.reviews.filter(r => r.id !== reviewId),
+        total: prev.total - 1,
+      } : prev);
+    } catch {
+      // silently fail
+    }
+  }
 
   if (loading) {
     return (
@@ -89,9 +145,10 @@ export default function CarDetailPage({ params }: { params: { id: string } }) {
             <div className="bg-white rounded-2xl overflow-hidden border border-slate-100">
               <div className="relative h-80 md:h-96 bg-slate-100">
                 <img
-                  src={images[activeImg]}
+                  src={images[activeImg] || 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=800&q=80'}
                   alt={`${car.make} ${car.model}`}
                   className="w-full h-full object-cover"
+                  onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=800&q=80'; }}
                 />
                 {images.length > 1 && (
                   <>
@@ -149,7 +206,7 @@ export default function CarDetailPage({ params }: { params: { id: string } }) {
             </div>
 
             {/* Features */}
-            {car.features && (
+            {car.features && car.features.length > 0 && (
               <div className="bg-white rounded-2xl border border-slate-100 p-5">
                 <h3 className="font-bold text-slate-900 mb-4">Key Features</h3>
                 <div className="flex flex-wrap gap-2">
@@ -171,7 +228,7 @@ export default function CarDetailPage({ params }: { params: { id: string } }) {
                   <h3 className={`font-bold ${isDeal ? 'text-green-800' : 'text-orange-800'}`}>
                     AI Price Analysis
                   </h3>
-                  <span className="text-xs bg-white/60 px-2 py-0.5 rounded-full text-slate-600">XGBoost ML</span>
+                  <span className="text-xs bg-white/60 px-2 py-0.5 rounded-full text-slate-600">ML Model</span>
                 </div>
                 <div className="flex items-baseline gap-3 mb-2">
                   <span className="text-3xl font-black text-slate-900">{formatPrice(car.price)}</span>
@@ -191,6 +248,106 @@ export default function CarDetailPage({ params }: { params: { id: string } }) {
                 </p>
               </div>
             )}
+
+            {/* Reviews */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-slate-900">
+                  Reviews
+                  {reviewsData && reviewsData.total > 0 && (
+                    <span className="ml-2 text-sm font-normal text-slate-500">
+                      ({reviewsData.total}) · ⭐ {reviewsData.averageRating}
+                    </span>
+                  )}
+                </h3>
+              </div>
+
+              {/* Post review form */}
+              {user ? (
+                <form onSubmit={handlePostReview} className="mb-6 p-4 bg-slate-50 rounded-xl space-y-3">
+                  <p className="text-sm font-medium text-slate-700">Write a review</p>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map(n => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setNewRating(n)}
+                        className="p-0.5"
+                      >
+                        <Star
+                          size={22}
+                          className={n <= newRating ? 'text-amber-400 fill-amber-400' : 'text-slate-300 fill-slate-300'}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    value={newComment}
+                    onChange={e => setNewComment(e.target.value)}
+                    placeholder="Share your experience with this car..."
+                    rows={3}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {reviewError && <p className="text-xs text-red-600">{reviewError}</p>}
+                  <button
+                    type="submit"
+                    disabled={submitting || !newComment.trim()}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
+                  >
+                    {submitting ? 'Posting…' : 'Post Review'}
+                  </button>
+                </form>
+              ) : (
+                <div className="mb-5 p-3 bg-blue-50 rounded-xl text-sm text-blue-700">
+                  <Link href="/login" className="font-semibold hover:underline">Log in</Link> to write a review.
+                </div>
+              )}
+
+              {/* Reviews list */}
+              {reviewsData && reviewsData.reviews.length > 0 ? (
+                <div className="space-y-4">
+                  {reviewsData.reviews.map(r => (
+                    <div key={r.id} className="border-b border-slate-100 pb-4 last:border-0 last:pb-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-xs font-bold text-blue-700">
+                            {r.user.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800">{r.user.name}</p>
+                            <div className="flex items-center gap-1">
+                              {[1,2,3,4,5].map(i => (
+                                <Star key={i} size={11} className={i <= r.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-200 fill-slate-200'} />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SENTIMENT_COLORS[r.sentiment] ?? SENTIMENT_COLORS.neutral}`}>
+                            {r.sentiment}
+                          </span>
+                          {user && (user.id === r.user.id || user.role === 'admin') && (
+                            <button
+                              onClick={() => handleDeleteReview(r.id)}
+                              className="text-slate-400 hover:text-red-500 transition-colors"
+                              title="Delete review"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-600 mt-2 leading-relaxed">{r.comment}</p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        {new Date(r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-400 text-center py-4">No reviews yet. Be the first to review!</p>
+              )}
+            </div>
           </div>
 
           {/* Right: Price + Actions */}

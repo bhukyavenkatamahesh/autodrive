@@ -1,26 +1,40 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getCars } from '@/lib/api';
 import { Car } from '@/lib/types';
 import CarCard from '@/components/cars/CarCard';
 import CarFilters from '@/components/cars/CarFilters';
+
+const PAGE_SIZE = 12;
 
 const defaultFilters = {
   make: 'All',
   fuelType: 'All',
   transmission: 'All',
   location: 'All Cities',
+  bodyType: 'All',
   minPrice: 0,
   maxPrice: 99999999,
 };
+
+function sortToApi(sortBy: string): string | undefined {
+  if (sortBy === 'price-asc') return 'price_asc';
+  if (sortBy === 'price-desc') return 'price_desc';
+  if (sortBy === 'year-desc') return 'year_desc';
+  if (sortBy === 'mileage-asc') return 'mileage_asc';
+  return undefined;
+}
 
 function CarsContent() {
   const searchParams = useSearchParams();
   const [filters, setFilters] = useState({ ...defaultFilters });
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('relevance');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [listPages, setListPages] = useState(1);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,17 +45,22 @@ function CarsContent() {
     const make = searchParams.get('make');
     const fuelType = searchParams.get('fuelType');
     const location = searchParams.get('location');
+    const bodyType = searchParams.get('bodyType');
+    const minPrice = searchParams.get('minPrice');
     const q = searchParams.get('search');
+    setPage(1);
     setFilters(f => ({
       ...f,
       ...(make ? { make } : {}),
       ...(fuelType ? { fuelType } : {}),
       ...(location ? { location } : {}),
+      ...(bodyType ? { bodyType } : {}),
+      ...(minPrice ? { minPrice: Number(minPrice) } : {}),
     }));
     if (q) setSearch(q);
   }, [searchParams]);
 
-  // Re-fetch whenever filters or search change
+  // Re-fetch whenever filters, search, sort, or page change
   useEffect(() => {
     setLoading(true);
     setError('');
@@ -50,27 +69,30 @@ function CarsContent() {
       fuelType: filters.fuelType,
       transmission: filters.transmission,
       location: filters.location,
+      bodyType: filters.bodyType,
       minPrice: filters.minPrice,
       maxPrice: filters.maxPrice,
       search,
+      sort: sortToApi(sortBy),
+      page,
+      limit: PAGE_SIZE,
     })
-      .then(setCars)
+      .then(res => {
+        setCars(res.cars);
+        setTotal(res.total);
+        setListPages(res.pages);
+      })
       .catch(err => setError(err instanceof Error ? err.message : 'Failed to load cars'))
       .finally(() => setLoading(false));
-  }, [filters, search]);
-
-  // Client-side sort (API already filtered)
-  let results = [...cars];
-  if (sortBy === 'price-asc') results.sort((a, b) => a.price - b.price);
-  else if (sortBy === 'price-desc') results.sort((a, b) => b.price - a.price);
-  else if (sortBy === 'year-desc') results.sort((a, b) => b.year - a.year);
-  else if (sortBy === 'mileage-asc') results.sort((a, b) => a.mileage - b.mileage);
+  }, [filters, search, sortBy, page]);
 
   function handleFilterChange(key: string, value: string | number) {
+    setPage(1);
     setFilters(f => ({ ...f, [key]: value }));
   }
 
   function handleReset() {
+    setPage(1);
     setFilters({ ...defaultFilters });
     setSearch('');
   }
@@ -80,9 +102,11 @@ function CarsContent() {
       {/* Page header */}
       <div className="bg-white border-b border-slate-100 py-5">
         <div className="max-w-7xl mx-auto px-4">
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">Used Cars</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-1">
+            {filters.bodyType !== 'All' ? `${filters.bodyType}s` : filters.fuelType !== 'All' ? `${filters.fuelType} Cars` : 'Used Cars'}
+          </h1>
           <p className="text-slate-500 text-sm">
-            {loading ? 'Loading…' : `${results.length} cars found`}
+            {loading ? 'Loading…' : `${total} cars found`}
           </p>
 
           {/* Search + Sort bar */}
@@ -93,11 +117,20 @@ function CarsContent() {
                 type="text"
                 placeholder="Search brand, model..."
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={e => {
+                  setPage(1);
+                  setSearch(e.target.value);
+                }}
                 className="flex-1 py-2.5 text-sm bg-transparent outline-none text-slate-700 placeholder-slate-400"
               />
               {search && (
-                <button onClick={() => setSearch('')} className="text-slate-400 hover:text-slate-600">
+                <button
+                  onClick={() => {
+                    setPage(1);
+                    setSearch('');
+                  }}
+                  className="text-slate-400 hover:text-slate-600"
+                >
                   <X size={14} />
                 </button>
               )}
@@ -105,7 +138,10 @@ function CarsContent() {
 
             <select
               value={sortBy}
-              onChange={e => setSortBy(e.target.value)}
+              onChange={e => {
+                setPage(1);
+                setSortBy(e.target.value);
+              }}
               className="text-sm border border-slate-200 rounded-xl px-4 py-2.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="relevance">Sort: Relevance</option>
@@ -158,7 +194,11 @@ function CarsContent() {
                 <h3 className="text-xl font-bold text-slate-800 mb-2">Could not load cars</h3>
                 <p className="text-slate-500 mb-6 text-sm">{error}</p>
                 <button
-                  onClick={() => setFilters({ ...defaultFilters })}
+                  onClick={() => {
+                    setPage(1);
+                    setFilters({ ...defaultFilters });
+                    setSearch('');
+                  }}
                   className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
                 >
                   Retry
@@ -170,7 +210,7 @@ function CarsContent() {
                   <div key={i} className="bg-white rounded-2xl border border-slate-100 h-72 animate-pulse" />
                 ))}
               </div>
-            ) : results.length === 0 ? (
+            ) : cars.length === 0 ? (
               <div className="text-center py-20">
                 <p className="text-5xl mb-4">🚗</p>
                 <h3 className="text-xl font-bold text-slate-800 mb-2">No cars found</h3>
@@ -183,11 +223,38 @@ function CarsContent() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                {results.map(car => (
-                  <CarCard key={car.id} car={car} />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {cars.map(car => (
+                    <CarCard key={car.id} car={car} />
+                  ))}
+                </div>
+                {listPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-10">
+                    <button
+                      type="button"
+                      disabled={page <= 1}
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      className="inline-flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none"
+                    >
+                      <ChevronLeft size={18} />
+                      Previous
+                    </button>
+                    <span className="text-sm text-slate-600 px-3">
+                      Page {page} of {listPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={page >= listPages}
+                      onClick={() => setPage(p => p + 1)}
+                      className="inline-flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none"
+                    >
+                      Next
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
