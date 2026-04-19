@@ -11,6 +11,7 @@ export default function RegisterPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<'user' | 'admin'>('user');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -19,7 +20,7 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      await register(name, email, password);
+      await register(name, email, password, role);
       router.push('/');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed');
@@ -84,6 +85,17 @@ export default function RegisterPage() {
               className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Min 6 characters"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Account Type</label>
+            <select
+              value={role}
+              onChange={e => setRole(e.target.value as 'user' | 'admin')}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
           </div>
           <button
             type="submit"

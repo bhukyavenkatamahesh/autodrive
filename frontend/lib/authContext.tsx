@@ -6,7 +6,8 @@ interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, role?: 'user' | 'admin') => Promise<void>;
+  setSession: (token: string, user: AuthUser) => void;
   logout: () => void;
 }
 
@@ -32,18 +33,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function login(email: string, password: string) {
     const result = await loginUser(email, password);
-    setToken(result.token);
-    setUser(result.user);
-    localStorage.setItem('auth_token', result.token);
-    localStorage.setItem('auth_user', JSON.stringify(result.user));
+    setSession(result.token, result.user);
   }
 
-  async function register(name: string, email: string, password: string) {
-    const result = await registerUser(name, email, password);
-    setToken(result.token);
-    setUser(result.user);
-    localStorage.setItem('auth_token', result.token);
-    localStorage.setItem('auth_user', JSON.stringify(result.user));
+  function setSession(nextToken: string, nextUser: AuthUser) {
+    setToken(nextToken);
+    setUser(nextUser);
+    localStorage.setItem('auth_token', nextToken);
+    localStorage.setItem('auth_user', JSON.stringify(nextUser));
+  }
+
+  async function register(name: string, email: string, password: string, role: 'user' | 'admin' = 'user') {
+    const result = await registerUser(name, email, password, role);
+    setSession(result.token, result.user);
   }
 
   function logout() {
@@ -55,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, login, register, setSession, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -35,6 +35,50 @@ class Car(BaseModel):
     seating: Optional[int] = None
 
 
+class CarCreate(BaseModel):
+    make: str
+    model: str
+    year: int
+    price: int
+    ml_price: Optional[int] = None
+    mileage: int
+    fuel_type: Literal["Petrol", "Diesel", "Electric", "Hybrid"]
+    transmission: Literal["Manual", "Automatic"]
+    location: str
+    image: str
+    images: list[str] = []
+    color: str
+    description: str
+    owners: int
+    rating: Optional[float] = None
+    reviews: Optional[int] = None
+    features: list[str] = []
+    engine_cc: Optional[int] = None
+    seating: Optional[int] = None
+
+
+class CarUpdate(BaseModel):
+    make: Optional[str] = None
+    model: Optional[str] = None
+    year: Optional[int] = None
+    price: Optional[int] = None
+    ml_price: Optional[int] = None
+    mileage: Optional[int] = None
+    fuel_type: Optional[Literal["Petrol", "Diesel", "Electric", "Hybrid"]] = None
+    transmission: Optional[Literal["Manual", "Automatic"]] = None
+    location: Optional[str] = None
+    image: Optional[str] = None
+    images: Optional[list[str]] = None
+    color: Optional[str] = None
+    description: Optional[str] = None
+    owners: Optional[int] = None
+    rating: Optional[float] = None
+    reviews: Optional[int] = None
+    features: Optional[list[str]] = None
+    engine_cc: Optional[int] = None
+    seating: Optional[int] = None
+
+
 # This model is used when someone wants to filter/search cars.
 # Optional means the field can be omitted — if omitted, don't filter by it.
 class CarFilters(BaseModel):

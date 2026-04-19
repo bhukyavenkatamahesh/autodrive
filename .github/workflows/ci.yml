@@ -31,3 +31,28 @@ jobs:
           test -f services/cars/requirements.txt
           test -f infra/terraform/main.tf
 
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install auth dependencies
+        working-directory: services/auth
+        run: npm ci
+
+      - name: Run auth tests
+        working-directory: services/auth
+        env:
+          NODE_ENV: test
+          AUTH_USE_INMEMORY: "true"
+        run: npm test
+
+      - name: Install cars dependencies
+        working-directory: services/cars
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+

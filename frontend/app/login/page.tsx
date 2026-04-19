@@ -1,17 +1,32 @@
 'use client';
 import { useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Car } from 'lucide-react';
 import { useAuth } from '@/lib/authContext';
+import { getOAuthUrl } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, setSession } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const id = params.get('id');
+    const name = params.get('name');
+    const email = params.get('email');
+    const role = params.get('role');
+    if (token && id && name && email && (role === 'admin' || role === 'user')) {
+      setSession(token, { id, name, email, role });
+      router.push('/');
+    }
+  }, [router, setSession]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,6 +39,15 @@ export default function LoginPage() {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleOAuth(provider: 'google' | 'github') {
+    try {
+      const authUrl = await getOAuthUrl(provider);
+      window.location.href = authUrl;
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : `Failed to start ${provider} OAuth`);
     }
   }
 
@@ -80,6 +104,27 @@ export default function LoginPage() {
             {loading ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
+        <div className="my-5 flex items-center gap-2 text-xs text-slate-400">
+          <div className="h-px bg-slate-200 flex-1" />
+          or continue with
+          <div className="h-px bg-slate-200 flex-1" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => handleOAuth('google')}
+            className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium hover:bg-slate-50"
+          >
+            Google
+          </button>
+          <button
+            type="button"
+            onClick={() => handleOAuth('github')}
+            className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium hover:bg-slate-50"
+          >
+            GitHub
+          </button>
+        </div>
 
         <p className="text-center text-sm text-slate-500 mt-6">
           Don&apos;t have an account?{' '}

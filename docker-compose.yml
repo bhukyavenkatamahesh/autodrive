@@ -31,6 +31,16 @@ services:
     environment:
       JWT_SECRET: ${JWT_SECRET:-autodrive-change-this-secret-in-production}
       PORT: "4001"
+      AUTH_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/autodrive
+      FRONTEND_URL: http://localhost:3000
+      OAUTH_BASE_URL: http://localhost:4001
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   cars:
     build:
@@ -39,6 +49,26 @@ services:
       - "8001:8001"
     environment:
       JWT_SECRET: ${JWT_SECRET:-autodrive-change-this-secret-in-production}
+      CARS_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/autodrive
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: autodrive
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d autodrive"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   reviews:
     build:
@@ -71,3 +101,6 @@ services:
     platform: linux/amd64   # Azure Functions image has no arm64 variant
     ports:
       - "7071:7071"
+
+volumes:
+  pgdata:

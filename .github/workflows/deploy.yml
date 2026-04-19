@@ -1,0 +1,22 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker compose services
+        run: docker compose config
+
+      - name: Deployment placeholder
+        run: |
+          echo "Add cloud deployment steps here (Azure/AWS/GCP)."
+          echo "This workflow is scaffolded and ready for environment-specific deploy commands."

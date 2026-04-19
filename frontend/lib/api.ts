@@ -131,11 +131,12 @@ export async function registerUser(
   name: string,
   email: string,
   password: string,
+  role: 'user' | 'admin' = 'user',
 ): Promise<AuthResult> {
   const res = await fetch(`${AUTH_API}/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, password }),
+    body: JSON.stringify({ name, email, password, role }),
   });
   if (!res.ok) throw new Error(await asJsonError(res, 'Registration failed'));
   return res.json();
@@ -418,4 +419,102 @@ export async function predictPrice(input: {
     confidenceHigh: data.confidence_interval?.high ?? data.predicted_price,
     modelVersion: data.model_version ?? 'unknown',
   };
+}
+
+export async function getOAuthUrl(provider: 'google' | 'github'): Promise<string> {
+  const res = await fetch(`${AUTH_API}/oauth/${provider}/start`, { cache: 'no-store' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? `Failed to start ${provider} OAuth`);
+  }
+  const payload = (await res.json()) as { authUrl: string };
+  return payload.authUrl;
+}
+
+export async function createCar(
+  token: string,
+  role: 'user' | 'admin',
+  payload: Omit<Car, 'id'>,
+): Promise<Car> {
+  const res = await fetch(`${CARS_API}/cars`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      'x-user-role': role,
+    },
+    body: JSON.stringify({
+      make: payload.make,
+      model: payload.model,
+      year: payload.year,
+      price: payload.price,
+      ml_price: payload.mlPrice,
+      mileage: payload.mileage,
+      fuel_type: payload.fuelType,
+      transmission: payload.transmission,
+      location: payload.location,
+      image: payload.image,
+      images: payload.images ?? [],
+      color: payload.color,
+      description: payload.description,
+      owners: payload.owners,
+      rating: payload.rating,
+      reviews: payload.reviews,
+      features: payload.features ?? [],
+      engine_cc: payload.engineCC,
+      seating: payload.seating,
+    }),
+  });
+  if (!res.ok) throw new Error('Failed to create car');
+  return mapCar(await res.json());
+}
+
+export async function updateCar(
+  token: string,
+  role: 'user' | 'admin',
+  id: string,
+  payload: Partial<Omit<Car, 'id'>>,
+): Promise<Car> {
+  const res = await fetch(`${CARS_API}/cars/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      'x-user-role': role,
+    },
+    body: JSON.stringify({
+      make: payload.make,
+      model: payload.model,
+      year: payload.year,
+      price: payload.price,
+      ml_price: payload.mlPrice,
+      mileage: payload.mileage,
+      fuel_type: payload.fuelType,
+      transmission: payload.transmission,
+      location: payload.location,
+      image: payload.image,
+      images: payload.images,
+      color: payload.color,
+      description: payload.description,
+      owners: payload.owners,
+      rating: payload.rating,
+      reviews: payload.reviews,
+      features: payload.features,
+      engine_cc: payload.engineCC,
+      seating: payload.seating,
+    }),
+  });
+  if (!res.ok) throw new Error('Failed to update car');
+  return mapCar(await res.json());
+}
+
+export async function deleteCar(token: string, role: 'user' | 'admin', id: string): Promise<void> {
+  const res = await fetch(`${CARS_API}/cars/${id}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'x-user-role': role,
+    },
+  });
+  if (!res.ok && res.status !== 204) throw new Error('Failed to delete car');
 }

@@ -130,6 +130,15 @@ export default function Navbar() {
                       <LayoutDashboard size={14} />
                       My bookings
                     </Link>
+                    {user.role === 'admin' && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        Admin Panel
+                      </Link>
+                    )}
                     <button
                       onClick={() => { logout(); setUserMenuOpen(false); }}
                       className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
@@ -185,6 +194,12 @@ export default function Navbar() {
             <Link href="/chat" className="block px-3 py-2 text-sm font-medium text-blue-600">AI Chat</Link>
             {user ? (
               <>
+                <Link href="/dashboard" className="block px-3 py-2 text-sm font-medium text-slate-700 hover:text-blue-600">My bookings</Link>
+                {user.role === 'admin' && (
+                  <Link href="/admin" className="block px-3 py-2 text-sm font-medium text-slate-700 hover:text-blue-600">
+                    Admin Panel
+                  </Link>
+                )}
                 <Link href="/dashboard" className="block px-3 py-2 text-sm font-medium text-slate-700 hover:text-blue-600">My bookings</Link>
                 <button
                   onClick={logout}
