@@ -80,9 +80,11 @@ frontend:
 ingress:
   enabled: true
   className: nginx
-  # Leave empty to route by path on the load-balancer IP (no host match).
-  # Once you have the ingress public IP, set to `<ip>.nip.io` for a free DNS.
   host: ""
+  tls:
+    enabled: false
+    secretName: autodrive-tls
+    issuer: letsencrypt-prod
   annotations:
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
