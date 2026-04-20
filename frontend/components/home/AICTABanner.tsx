@@ -12,7 +12,7 @@ export default function AICTABanner() {
           Not sure which car to buy?
         </h2>
         <p className="text-blue-100 text-lg mb-8 max-w-xl mx-auto">
-          Chat with AutoDrive AI — powered by GPT-4o. Tell it your budget, needs, and preferences. It'll find your perfect match.
+          Chat with AutoDrive AI — powered by GPT-4o. Tell it your budget, needs, and preferences. It&apos;ll find your perfect match.
         </p>
         <div className="flex gap-3 justify-center flex-wrap">
           <Link

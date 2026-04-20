@@ -1,9 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Scale, X } from 'lucide-react';
 import { getCars } from '@/lib/api';
 import { Car } from '@/lib/types';
-import { formatPrice } from '@/lib/mockData';
+import { formatPrice } from '@/lib/format';
 
 const ROWS: { label: string; key: keyof Car }[] = [
   { label: 'Price',        key: 'price' },
@@ -69,11 +70,12 @@ export default function ComparePage() {
               {selected[i] ? (
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <img
+                    <Image
                       src={selected[i]!.image || 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=400&q=60'}
                       alt=""
+                      width={400}
+                      height={128}
                       className="w-full h-32 object-cover rounded-xl mb-3"
-                      onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=400&q=60'; }}
                     />
                     <p className="font-bold text-slate-900 text-sm">
                       {selected[i]!.year} {selected[i]!.make} {selected[i]!.model}

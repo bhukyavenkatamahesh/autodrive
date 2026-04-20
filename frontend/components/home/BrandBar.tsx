@@ -1,8 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { getBrands } from '@/lib/api';
-import { brands as mockBrands } from '@/lib/mockData';
 import { Brand } from '@/lib/types';
 
 const brandLogos: Record<string, string> = {
@@ -18,42 +18,55 @@ const brandLogos: Record<string, string> = {
 
 export default function BrandBar() {
   const router = useRouter();
-  const [brands, setBrands] = useState<Brand[]>(mockBrands);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     getBrands()
       .then(setBrands)
-      .catch(() => {}); // keep mock data on failure
+      .catch(() => setBrands([]))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
     <section className="py-10 bg-white border-b border-slate-100">
       <div className="max-w-7xl mx-auto px-4">
         <h2 className="text-xl font-bold text-slate-900 mb-6 text-center">Browse by Brand</h2>
-        <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
-          {brands.map(brand => (
-            <button
-              key={brand.name}
-              onClick={() => router.push(`/cars?make=${encodeURIComponent(brand.name)}`)}
-              className="flex flex-col items-center gap-2 p-3 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-all group"
-            >
-              <div className="w-12 h-12 flex items-center justify-center">
-                <img
-                  src={brandLogos[brand.name]}
-                  alt={brand.name}
-                  className="w-10 h-10 object-contain grayscale group-hover:grayscale-0 transition-all"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              </div>
-              <span className="text-xs font-medium text-slate-600 group-hover:text-blue-600 text-center leading-tight">
-                {brand.name.split(' ')[0]}
-              </span>
-              <span className="text-xs text-slate-400">{brand.count.toLocaleString()}</span>
-            </button>
-          ))}
-        </div>
+        {loading ? (
+          <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div key={index} className="rounded-xl border border-slate-100 bg-slate-50 p-3 animate-pulse h-24" />
+            ))}
+          </div>
+        ) : brands.length > 0 ? (
+          <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
+            {brands.map(brand => (
+              <button
+                key={brand.name}
+                onClick={() => router.push(`/cars?make=${encodeURIComponent(brand.name)}`)}
+                className="flex flex-col items-center gap-2 p-3 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-all group"
+              >
+                <div className="w-12 h-12 flex items-center justify-center">
+                  <Image
+                    src={brandLogos[brand.name]}
+                    alt={brand.name}
+                    width={40}
+                    height={40}
+                    className="object-contain grayscale group-hover:grayscale-0 transition-all"
+                  />
+                </div>
+                <span className="text-xs font-medium text-slate-600 group-hover:text-blue-600 text-center leading-tight">
+                  {brand.name.split(' ')[0]}
+                </span>
+                <span className="text-xs text-slate-400">{brand.count.toLocaleString()}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-10 text-center text-sm text-slate-500">
+            Brand data is unavailable right now.
+          </div>
+        )}
       </div>
     </section>
   );

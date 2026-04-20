@@ -3,20 +3,19 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, MapPin, ChevronDown, Sparkles } from 'lucide-react';
 import { getLocations } from '@/lib/api';
-import { locations as mockLocations } from '@/lib/mockData';
 
 export default function Hero() {
   const router = useRouter();
   const [query, setQuery] = useState('');
-  const [city, setCity] = useState('Delhi');
+  const [city, setCity] = useState('All Cities');
   const [cityOpen, setCityOpen] = useState(false);
   const [budget, setBudget] = useState('');
-  const [locations, setLocations] = useState<string[]>(mockLocations);
+  const [locations, setLocations] = useState<string[]>([]);
 
   useEffect(() => {
     getLocations()
       .then(setLocations)
-      .catch(() => {}); // keep mock data on failure
+      .catch(() => setLocations([]));
   }, []);
 
   const budgets = [
@@ -81,7 +80,13 @@ export default function Hero() {
               </button>
               {cityOpen && (
                 <div className="absolute top-full left-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 text-left">
-                  {locations.slice(1).map(c => (
+                    <button
+                      onClick={() => { setCity('All Cities'); setCityOpen(false); }}
+                      className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600"
+                    >
+                      All Cities
+                    </button>
+                    {locations.map(c => (
                     <button
                       key={c}
                       onClick={() => { setCity(c); setCityOpen(false); }}

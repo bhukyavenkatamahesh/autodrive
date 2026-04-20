@@ -1,5 +1,3 @@
-version: "3.9"
-
 # All JWT-issuing/validating services read JWT_SECRET from the shell or a
 # root-level .env file (see .env.example). Everything stays in sync because
 # they resolve the same variable name.
@@ -16,7 +14,7 @@ services:
       NEXT_PUBLIC_CARS_API_URL: http://localhost:8001
       NEXT_PUBLIC_AUTH_API_URL: http://localhost:4001
       NEXT_PUBLIC_REVIEWS_API_URL: http://localhost:4002
-      NEXT_PUBLIC_CHATBOT_API_URL: https://autodrive-chatbot.azurewebsites.net
+      NEXT_PUBLIC_CHATBOT_API_URL: http://localhost:8002
       NEXT_PUBLIC_ML_PRICE_API_URL: http://localhost:8003
     depends_on:
       - auth

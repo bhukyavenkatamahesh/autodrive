@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
+import Image from 'next/image';
 
 const POSTS = [
   {
@@ -47,7 +48,7 @@ export default function BlogPage() {
         <div className="grid md:grid-cols-2 gap-6">
           {POSTS.map(post => (
             <div key={post.title} className="bg-white rounded-2xl border border-slate-100 overflow-hidden hover:border-blue-200 hover:shadow-lg transition-all">
-              <img src={post.image} alt="" className="w-full h-44 object-cover" />
+              <Image src={post.image} alt="" width={600} height={176} className="w-full h-44 object-cover" />
               <div className="p-5">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">{post.tag}</span>

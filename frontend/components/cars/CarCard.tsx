@@ -1,8 +1,9 @@
 'use client';
 import Link from 'next/link';
+import Image from 'next/image';
 import { MapPin, Gauge, Fuel, Settings, TrendingDown, TrendingUp, Star } from 'lucide-react';
 import { Car } from '@/lib/types';
-import { formatPrice } from '@/lib/mockData';
+import { formatPrice } from '@/lib/format';
 
 interface CarCardProps {
   car: Car;
@@ -24,11 +25,13 @@ export default function CarCard({ car }: CarCardProps) {
       <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden hover:border-blue-200 hover:shadow-xl transition-all duration-300">
         {/* Image */}
         <div className="relative h-48 overflow-hidden bg-slate-100">
-          <img
+          <Image
             src={car.image || 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=600&q=80'}
             alt={`${car.year} ${car.make} ${car.model}`}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=600&q=80'; }}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={e => { (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=600&q=80'; }}
+            sizes="(max-width: 768px) 100vw, 33vw"
           />
           {/* Overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />

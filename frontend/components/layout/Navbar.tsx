@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, MapPin, ChevronDown, Menu, X, Car, Bot, LogOut, User, LayoutDashboard } from 'lucide-react';
 import { getLocations } from '@/lib/api';
-import { locations as mockLocations } from '@/lib/mockData';
 import { useAuth } from '@/lib/authContext';
 
 export default function Navbar() {
@@ -13,15 +12,15 @@ export default function Navbar() {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCity, setSelectedCity] = useState('Delhi');
+  const [selectedCity, setSelectedCity] = useState('All Cities');
   const [cityOpen, setCityOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [locations, setLocations] = useState<string[]>(mockLocations);
+  const [locations, setLocations] = useState<string[]>([]);
 
   useEffect(() => {
     getLocations()
       .then(setLocations)
-      .catch(() => {}); // keep mock data on failure
+      .catch(() => setLocations([]));
   }, []);
 
   function handleSearch() {
@@ -61,7 +60,13 @@ export default function Navbar() {
             </button>
             {cityOpen && (
               <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50">
-                {locations.slice(1).map(city => (
+                <button
+                  onClick={() => { setSelectedCity('All Cities'); setCityOpen(false); }}
+                  className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                >
+                  All Cities
+                </button>
+                {locations.map(city => (
                   <button
                     key={city}
                     onClick={() => { setSelectedCity(city); setCityOpen(false); }}

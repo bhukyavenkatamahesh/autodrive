@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   MapPin, Gauge, Fuel, Settings, Star, Users,
   Calendar, TrendingUp, Bot, Phone,
@@ -8,7 +9,7 @@ import {
 } from 'lucide-react';
 import { getCarById, getCars, getReviews, postReview, deleteReview } from '@/lib/api';
 import type { ReviewsResponse } from '@/lib/api';
-import { formatPrice } from '@/lib/mockData';
+import { formatPrice } from '@/lib/format';
 import { Car } from '@/lib/types';
 import CarCard from '@/components/cars/CarCard';
 import BookingModal from '@/components/booking/BookingModal';
@@ -144,11 +145,12 @@ export default function CarDetailPage({ params }: { params: { id: string } }) {
             {/* Image gallery */}
             <div className="bg-white rounded-2xl overflow-hidden border border-slate-100">
               <div className="relative h-80 md:h-96 bg-slate-100">
-                <img
+                <Image
                   src={images[activeImg] || 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=800&q=80'}
                   alt={`${car.make} ${car.model}`}
-                  className="w-full h-full object-cover"
-                  onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=800&q=80'; }}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 66vw"
                 />
                 {images.length > 1 && (
                   <>
@@ -175,7 +177,7 @@ export default function CarDetailPage({ params }: { params: { id: string } }) {
                       onClick={() => setActiveImg(i)}
                       className={`w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${activeImg === i ? 'border-blue-500' : 'border-transparent'}`}
                     >
-                      <img src={img} alt="" className="w-full h-full object-cover" />
+                      <Image src={img} alt="" width={64} height={48} className="w-full h-full object-cover" />
                     </button>
                   ))}
                 </div>

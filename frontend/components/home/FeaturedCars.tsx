@@ -1,18 +1,34 @@
+"use client";
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { getCars } from '@/lib/api';
-import { cars as mockCars } from '@/lib/mockData';
 import CarCard from '@/components/cars/CarCard';
+import type { Car } from '@/lib/types';
 
-export default async function FeaturedCars() {
-  let featured;
-  try {
-    const { cars: apiCars } = await getCars({ limit: 6 });
-    featured = apiCars;
-  } catch {
-    // API not available — fall back to mock data so the page still renders
-    featured = mockCars.slice(0, 6);
-  }
+export default function FeaturedCars() {
+  const [featured, setFeatured] = useState<Car[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getCars({ limit: 6 })
+      .then(({ cars }) => {
+        if (!cancelled) setFeatured(cars);
+      })
+      .catch(() => {
+        if (!cancelled) setFeatured([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <section className="py-12 bg-slate-50">
@@ -30,11 +46,23 @@ export default async function FeaturedCars() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featured.map(car => (
-            <CarCard key={car.id} car={car} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="rounded-2xl border border-slate-100 bg-white h-96 animate-pulse" />
+            ))}
+          </div>
+        ) : featured.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {featured.map(car => (
+              <CarCard key={car.id} car={car} />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-500">
+            Featured cars are unavailable right now. Please try again once the backend is online.
+          </div>
+        )}
       </div>
     </section>
   );
