@@ -1,22 +1,125 @@
-name: Deploy
+name: Deploy to AKS
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'services/auth/**'
+      - 'services/cars/**'
+      - 'infra/helm/**'
+      - '.github/workflows/deploy.yml'
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+  AKS_CLUSTER: ${{ vars.AKS_CLUSTER_NAME }}
+  ACR_NAME: ${{ vars.ACR_NAME }}
+  KEY_VAULT: ${{ vars.KEY_VAULT_NAME }}
+  CHATBOT_URL: ${{ vars.CHATBOT_PUBLIC_URL }}
 
 jobs:
-  deploy:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: meta
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: ACR login
+        run: az acr login --name "${ACR_NAME}"
+
+      - name: Build + push auth image
+        run: |
+          IMAGE="${ACR_NAME}.azurecr.io/autodrive-auth"
+          docker build -t "${IMAGE}:${{ steps.meta.outputs.tag }}" -t "${IMAGE}:latest" services/auth
+          docker push "${IMAGE}:${{ steps.meta.outputs.tag }}"
+          docker push "${IMAGE}:latest"
+
+      - name: Build + push cars image
+        run: |
+          IMAGE="${ACR_NAME}.azurecr.io/autodrive-cars"
+          docker build -t "${IMAGE}:${{ steps.meta.outputs.tag }}" -t "${IMAGE}:latest" services/cars
+          docker push "${IMAGE}:${{ steps.meta.outputs.tag }}"
+          docker push "${IMAGE}:latest"
+
+      - name: Build + push frontend image
+        run: |
+          IMAGE="${ACR_NAME}.azurecr.io/autodrive-frontend"
+          docker build \
+            --build-arg NEXT_PUBLIC_CARS_API_URL=/cars \
+            --build-arg NEXT_PUBLIC_AUTH_API_URL=/auth \
+            --build-arg NEXT_PUBLIC_REVIEWS_API_URL=/reviews \
+            --build-arg NEXT_PUBLIC_CHATBOT_API_URL="${CHATBOT_URL}" \
+            -t "${IMAGE}:${{ steps.meta.outputs.tag }}" -t "${IMAGE}:latest" frontend
+          docker push "${IMAGE}:${{ steps.meta.outputs.tag }}"
+          docker push "${IMAGE}:latest"
+
+  helm-deploy:
+    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Build Docker compose services
-        run: docker compose config
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deployment placeholder
+      - name: Fetch AKS credentials
+        uses: azure/aks-set-context@v4
+        with:
+          resource-group: ${{ env.RESOURCE_GROUP }}
+          cluster-name: ${{ env.AKS_CLUSTER }}
+
+      - name: Pull secrets from Key Vault
+        id: kv
         run: |
-          echo "Add cloud deployment steps here (Azure/AWS/GCP)."
-          echo "This workflow is scaffolded and ready for environment-specific deploy commands."
+          DB_URL=$(az keyvault secret show --vault-name "$KEY_VAULT" --name postgres-url --query value -o tsv)
+          JWT_SECRET=$(az keyvault secret show --vault-name "$KEY_VAULT" --name jwt-secret --query value -o tsv)
+          echo "::add-mask::$DB_URL"
+          echo "::add-mask::$JWT_SECRET"
+          echo "db_url=$DB_URL" >> "$GITHUB_OUTPUT"
+          echo "jwt_secret=$JWT_SECRET" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.15.0
+
+      - name: Helm upgrade
+        run: |
+          TAG="${{ needs.build-and-push.outputs.image_tag }}"
+          helm upgrade --install autodrive infra/helm/autodrive \
+            --namespace autodrive --create-namespace \
+            --set image.registry="${ACR_NAME}.azurecr.io" \
+            --set auth.image.tag="${TAG}" \
+            --set cars.image.tag="${TAG}" \
+            --set frontend.image.tag="${TAG}" \
+            --set-string secrets.databaseUrl="${{ steps.kv.outputs.db_url }}" \
+            --set-string secrets.jwtSecret="${{ steps.kv.outputs.jwt_secret }}" \
+            --set-string secrets.frontendUrl="${{ vars.FRONTEND_PUBLIC_URL }}" \
+            --set-string secrets.oauthBaseUrl="${{ vars.AUTH_PUBLIC_URL }}" \
+            --set-string secrets.googleClientId="${{ secrets.GOOGLE_CLIENT_ID }}" \
+            --set-string secrets.googleClientSecret="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+            --set-string secrets.githubClientId="${{ secrets.GITHUB_CLIENT_ID }}" \
+            --set-string secrets.githubClientSecret="${{ secrets.GITHUB_CLIENT_SECRET }}" \
+            --wait --timeout 8m
+
+      - name: Show rollout status
+        run: |
+          kubectl -n autodrive rollout status deploy -l app.kubernetes.io/name=autodrive
+          kubectl -n autodrive get pods,svc,ingress,hpa
