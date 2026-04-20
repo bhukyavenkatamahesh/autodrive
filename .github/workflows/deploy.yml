@@ -60,7 +60,7 @@ jobs:
         run: |
           IMAGE="${ACR_NAME}.azurecr.io/autodrive-frontend"
           docker build \
-            --build-arg NEXT_PUBLIC_CARS_API_URL=/cars \
+            --build-arg NEXT_PUBLIC_CARS_API_URL=/api \
             --build-arg NEXT_PUBLIC_AUTH_API_URL=/auth \
             --build-arg NEXT_PUBLIC_REVIEWS_API_URL=/reviews \
             --build-arg NEXT_PUBLIC_CHATBOT_API_URL="${CHATBOT_URL}" \
