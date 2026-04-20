@@ -1,11 +1,89 @@
-replicaCount: 1
-
 image:
-  repository: autodrive/frontend
-  tag: latest
+  # Override via --set at install time, e.g. crautodrivexxxxx.azurecr.io
+  registry: ""
   pullPolicy: IfNotPresent
 
-service:
-  type: ClusterIP
-  port: 3000
+secrets:
+  # Full postgres connection string including ?sslmode=require. Override via --set.
+  databaseUrl: ""
+  # JWT signing secret used by auth + cars. Override via --set.
+  jwtSecret: ""
+  # Public URL the browser hits for the frontend (used for CORS + OAuth callbacks).
+  frontendUrl: ""
+  # Public base URL where OAuth providers should redirect back (the auth service).
+  oauthBaseUrl: ""
+  googleClientId: ""
+  googleClientSecret: ""
+  githubClientId: ""
+  githubClientSecret: ""
 
+auth:
+  enabled: true
+  image:
+    repository: autodrive-auth
+    tag: latest
+  replicaCount: 2
+  port: 4001
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+  hpa:
+    enabled: true
+    min: 2
+    max: 5
+    cpuAverage: 70
+
+cars:
+  enabled: true
+  image:
+    repository: autodrive-cars
+    tag: latest
+  replicaCount: 2
+  port: 8001
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 384Mi
+  hpa:
+    enabled: true
+    min: 2
+    max: 5
+    cpuAverage: 70
+
+frontend:
+  enabled: true
+  image:
+    repository: autodrive-frontend
+    tag: latest
+  replicaCount: 2
+  port: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 192Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  hpa:
+    enabled: true
+    min: 2
+    max: 4
+    cpuAverage: 75
+
+ingress:
+  enabled: true
+  className: nginx
+  # Leave empty to route by path on the load-balancer IP (no host match).
+  # Once you have the ingress public IP, set to `<ip>.nip.io` for a free DNS.
+  host: ""
+  annotations:
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type"

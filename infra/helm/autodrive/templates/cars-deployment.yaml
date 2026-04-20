@@ -1,0 +1,43 @@
+{{- if .Values.cars.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "autodrive.fullname" . }}-cars
+  labels:
+    {{- include "autodrive.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cars
+spec:
+  replicas: {{ .Values.cars.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "autodrive.name" . }}
+      app.kubernetes.io/component: cars
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "autodrive.name" . }}
+        app.kubernetes.io/component: cars
+    spec:
+      containers:
+        - name: cars
+          image: {{ include "autodrive.image" (dict "root" . "svc" .Values.cars) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.cars.port }}
+          envFrom:
+            - secretRef:
+                name: {{ include "autodrive.fullname" . }}-shared
+          resources:
+            {{- toYaml .Values.cars.resources | nindent 12 }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.cars.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.cars.port }}
+            initialDelaySeconds: 20
+            periodSeconds: 20
+{{- end }}

@@ -1,0 +1,18 @@
+{{- if .Values.cars.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "autodrive.fullname" . }}-cars
+  labels:
+    {{- include "autodrive.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cars
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: {{ include "autodrive.name" . }}
+    app.kubernetes.io/component: cars
+  ports:
+    - name: http
+      port: {{ .Values.cars.port }}
+      targetPort: {{ .Values.cars.port }}
+{{- end }}
