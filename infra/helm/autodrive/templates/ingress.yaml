@@ -33,13 +33,6 @@ spec:
                 name: {{ include "autodrive.fullname" . }}-auth
                 port:
                   number: {{ .Values.auth.port }}
-          - path: /cars
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "autodrive.fullname" . }}-cars
-                port:
-                  number: {{ .Values.cars.port }}
           - path: /
             pathType: Prefix
             backend:
@@ -47,4 +40,41 @@ spec:
                 name: {{ include "autodrive.fullname" . }}-frontend
                 port:
                   number: {{ .Values.frontend.port }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "autodrive.fullname" . }}-api
+  labels:
+    {{- include "autodrive.labels" . | nindent 4 }}
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    {{- if .Values.ingress.tls.enabled }}
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.tls.issuer | quote }}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if and .Values.ingress.tls.enabled (ne .Values.ingress.host "") }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.host | quote }}
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    {{- $hasHost := ne .Values.ingress.host "" }}
+    - {{ if $hasHost }}host: {{ .Values.ingress.host | quote }}
+      {{ end }}http:
+        paths:
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: {{ include "autodrive.fullname" . }}-cars
+                port:
+                  number: {{ .Values.cars.port }}
 {{- end }}
