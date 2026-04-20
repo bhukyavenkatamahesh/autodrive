@@ -46,17 +46,9 @@ export default function BrandBar() {
                 className="flex flex-col items-center gap-2 p-3 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-all group"
               >
                 <div className="w-12 h-12 flex items-center justify-center">
-                  {brandLogos[brand.name] ? (
-                    <img
-                      src={brandLogos[brand.name]}
-                      alt={brand.name}
-                      width={40}
-                      height={40}
-                      className="object-contain grayscale group-hover:grayscale-0 transition-all"
-                    />
-                  ) : (
-                    <span className="text-lg font-bold text-slate-500">{brand.name[0]}</span>
-                  )}
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-sm group-hover:scale-110 transition-transform">
+                    {brand.name.substring(0, 2).toUpperCase()}
+                  </div>
                 </div>
                 <span className="text-xs font-medium text-slate-600 group-hover:text-blue-600 text-center leading-tight">
                   {brand.name.split(' ')[0]}
