@@ -142,7 +142,7 @@ export async function buildApp() {
 
   app.get("/health", async () => ({ service: "auth", status: "ok" }));
 
-  app.post("/register", async (req, reply) => {
+  const registerHandler = async (req, reply) => {
     const { name, email, password, role } = req.body ?? {};
     if (!name || !email || !password) return reply.code(400).send({ error: "name, email, and password are required" });
     const hash = await bcrypt.hash(password, 10);
@@ -168,9 +168,11 @@ export async function buildApp() {
       req.log.error(error);
       return reply.code(500).send({ error: "Failed to register user" });
     }
-  });
+  };
+  app.post("/register", registerHandler);
+  app.post("/auth/register", registerHandler);
 
-  app.post("/login", async (req, reply) => {
+  const loginHandler = async (req, reply) => {
     const { email, password } = req.body ?? {};
     if (!email || !password) return reply.code(400).send({ error: "email and password are required" });
     const user = AUTH_USE_INMEMORY
@@ -180,13 +182,18 @@ export async function buildApp() {
       return reply.code(401).send({ error: "Invalid email or password" });
     }
     return { token: signToken(app, user), user: sanitizeUser(user) };
-  });
+  };
+  app.post("/login", loginHandler);
+  app.post("/auth/login", loginHandler);
 
   app.get("/me", { preHandler: [app.authenticate] }, async (req) => ({ user: req.user }));
+  app.get("/auth/me", { preHandler: [app.authenticate] }, async (req) => req.user);
   app.post("/logout", { preHandler: [app.authenticate] }, async () => ({ message: "logged out" }));
+  app.post("/auth/logout", { preHandler: [app.authenticate] }, async () => ({ message: "logged out" }));
   app.post("/refresh", { preHandler: [app.authenticate] }, async (req) => ({ token: signToken(app, req.user), user: req.user }));
+  app.post("/auth/refresh", { preHandler: [app.authenticate] }, async (req) => ({ token: signToken(app, req.user), user: req.user }));
 
-  app.get("/oauth/google/start", async (_req, reply) => {
+  const googleStartHandler = async (_req, reply) => {
     if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) return reply.code(400).send({ error: "Google OAuth keys are not configured" });
     const redirect = new URL("https://accounts.google.com/o/oauth2/v2/auth");
     redirect.searchParams.set("client_id", GOOGLE_CLIENT_ID);
@@ -195,9 +202,11 @@ export async function buildApp() {
     redirect.searchParams.set("scope", "openid email profile");
     redirect.searchParams.set("prompt", "select_account");
     return reply.send({ authUrl: redirect.toString() });
-  });
+  };
+  app.get("/oauth/google/start", googleStartHandler);
+  app.get("/auth/google", googleStartHandler);
 
-  app.get("/oauth/google/callback", async (req, reply) => {
+  const googleCallbackHandler = async (req, reply) => {
     const code = req.query?.code;
     if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) return reply.code(400).send({ error: "Google OAuth keys are not configured" });
     if (!code) return reply.code(400).send({ error: "Missing authorization code" });
@@ -220,18 +229,22 @@ export async function buildApp() {
       req.log.error(error);
       return reply.code(500).send({ error: "Google OAuth login failed" });
     }
-  });
+  };
+  app.get("/oauth/google/callback", googleCallbackHandler);
+  app.get("/auth/google/callback", googleCallbackHandler);
 
-  app.get("/oauth/github/start", async (_req, reply) => {
+  const githubStartHandler = async (_req, reply) => {
     if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) return reply.code(400).send({ error: "GitHub OAuth keys are not configured" });
     const redirect = new URL("https://github.com/login/oauth/authorize");
     redirect.searchParams.set("client_id", GITHUB_CLIENT_ID);
     redirect.searchParams.set("redirect_uri", GITHUB_CALLBACK_URL);
     redirect.searchParams.set("scope", "read:user user:email");
     return reply.send({ authUrl: redirect.toString() });
-  });
+  };
+  app.get("/oauth/github/start", githubStartHandler);
+  app.get("/auth/github", githubStartHandler);
 
-  app.get("/oauth/github/callback", async (req, reply) => {
+  const githubCallbackHandler = async (req, reply) => {
     const code = req.query?.code;
     if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) return reply.code(400).send({ error: "GitHub OAuth keys are not configured" });
     if (!code) return reply.code(400).send({ error: "Missing authorization code" });
@@ -267,7 +280,9 @@ export async function buildApp() {
       req.log.error(error);
       return reply.code(500).send({ error: "GitHub OAuth login failed" });
     }
-  });
+  };
+  app.get("/oauth/github/callback", githubCallbackHandler);
+  app.get("/auth/github/callback", githubCallbackHandler);
 
   return app;
 }

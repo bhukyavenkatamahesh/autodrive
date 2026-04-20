@@ -125,6 +125,15 @@ def _ensure_schema_and_seed() -> None:
                     cur.execute(
                         "ALTER TABLE cars ADD COLUMN IF NOT EXISTS body_type TEXT"
                     )
+                    cur.execute(
+                        "UPDATE cars SET body_type = 'SUV' WHERE id::text IN ('2','3','5','6','7','8') AND body_type IS NULL"
+                    )
+                    cur.execute(
+                        "UPDATE cars SET body_type = 'Sedan' WHERE id::text IN ('4','10','12') AND body_type IS NULL"
+                    )
+                    cur.execute(
+                        "UPDATE cars SET body_type = 'Hatchback' WHERE id::text IN ('1','9','11') AND body_type IS NULL"
+                    )
                     cur.execute("SELECT COUNT(*) FROM cars")
                     if cur.fetchone()[0] == 0:
                         for car in CARS:

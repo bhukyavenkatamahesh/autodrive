@@ -14,6 +14,7 @@ const emptyForm = {
   mileage: 0,
   fuelType: 'Petrol' as Car['fuelType'],
   transmission: 'Manual' as Car['transmission'],
+  bodyType: 'SUV',
   location: '',
   image: '',
   color: '',
@@ -52,6 +53,7 @@ export default function AdminPage() {
     try {
       const created = await createCar(token, user.role, {
         ...form,
+        bodyType: form.bodyType,
         mlPrice: undefined,
         images: form.image ? [form.image] : [],
         rating: undefined,
@@ -121,6 +123,11 @@ export default function AdminPage() {
         <select className="border rounded-lg px-3 py-2 bg-white" value={form.transmission} onChange={e => setForm({ ...form, transmission: e.target.value as Car['transmission'] })}>
           <option value="Manual">Manual</option>
           <option value="Automatic">Automatic</option>
+        </select>
+        <select className="border rounded-lg px-3 py-2 bg-white" value={form.bodyType} onChange={e => setForm({ ...form, bodyType: e.target.value })}>
+          <option value="SUV">SUV</option>
+          <option value="Sedan">Sedan</option>
+          <option value="Hatchback">Hatchback</option>
         </select>
         <button disabled={loading} className="md:col-span-2 bg-blue-600 text-white rounded-lg py-2 font-medium disabled:opacity-60">
           {loading ? 'Saving...' : 'Create Car'}

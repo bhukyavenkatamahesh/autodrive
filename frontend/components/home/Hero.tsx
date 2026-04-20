@@ -24,10 +24,24 @@ export default function Hero() {
     '₹10L – ₹20L', '₹20L – ₹50L', 'Above ₹50L',
   ];
 
+  const budgetRanges: Record<string, { min?: number; max?: number }> = {
+    'Under ₹3L':    { max: 300000 },
+    '₹3L – ₹5L':   { min: 300000,  max: 500000 },
+    '₹5L – ₹10L':  { min: 500000,  max: 1000000 },
+    '₹10L – ₹20L': { min: 1000000, max: 2000000 },
+    '₹20L – ₹50L': { min: 2000000, max: 5000000 },
+    'Above ₹50L':  { min: 5000000 },
+  };
+
   function handleSearch() {
     const params = new URLSearchParams();
     if (query) params.set('search', query);
     if (city !== 'All Cities') params.set('location', city);
+    if (budget && budgetRanges[budget]) {
+      const { min, max } = budgetRanges[budget];
+      if (min) params.set('minPrice', String(min));
+      if (max) params.set('maxPrice', String(max));
+    }
     router.push(`/cars?${params.toString()}`);
   }
 

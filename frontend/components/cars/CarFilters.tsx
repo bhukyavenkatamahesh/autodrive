@@ -7,6 +7,7 @@ interface FiltersProps {
     fuelType: string;
     transmission: string;
     location: string;
+    bodyType: string;
     minPrice: number;
     maxPrice: number;
   };
@@ -17,16 +18,17 @@ interface FiltersProps {
 const makes = ['All', 'Maruti Suzuki', 'Hyundai', 'Tata', 'Honda', 'Toyota', 'Kia', 'Mahindra', 'BMW', 'Volkswagen', 'Renault', 'Skoda', 'MG'];
 const fuelTypes = ['All', 'Petrol', 'Diesel', 'Electric', 'Hybrid'];
 const transmissions = ['All', 'Manual', 'Automatic'];
+const bodyTypes = ['All', 'SUV', 'Sedan', 'Hatchback'];
 const locations = ['All Cities', 'Delhi', 'Mumbai', 'Bangalore', 'Chennai', 'Pune', 'Hyderabad', 'Kolkata', 'Ahmedabad', 'Jaipur'];
 
 const priceRanges = [
-  { label: 'Any', min: 0, max: 99999999 },
-  { label: 'Under ₹3L', min: 0, max: 300000 },
-  { label: '₹3L – ₹5L', min: 300000, max: 500000 },
-  { label: '₹5L – ₹10L', min: 500000, max: 1000000 },
-  { label: '₹10L – ₹20L', min: 1000000, max: 2000000 },
-  { label: '₹20L – ₹50L', min: 2000000, max: 5000000 },
-  { label: 'Above ₹50L', min: 5000000, max: 99999999 },
+  { label: 'Any',          min: 0,       max: 99999999 },
+  { label: 'Under ₹3L',   min: 0,       max: 300000 },
+  { label: '₹3L – ₹5L',  min: 300000,  max: 500000 },
+  { label: '₹5L – ₹10L', min: 500000,  max: 1000000 },
+  { label: '₹10L – ₹20L',min: 1000000, max: 2000000 },
+  { label: '₹20L – ₹50L',min: 2000000, max: 5000000 },
+  { label: 'Above ₹50L',  min: 5000000, max: 99999999 },
 ];
 
 function FilterSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -39,9 +41,10 @@ function FilterSection({ title, children }: { title: string; children: React.Rea
 }
 
 export default function CarFilters({ filters, onChange, onReset }: FiltersProps) {
-  const hasActive = filters.make !== 'All' || filters.fuelType !== 'All' ||
+  const hasActive =
+    filters.make !== 'All' || filters.fuelType !== 'All' ||
     filters.transmission !== 'All' || filters.location !== 'All Cities' ||
-    filters.maxPrice < 99999999;
+    filters.bodyType !== 'All' || filters.maxPrice < 99999999;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-5 sticky top-24">
@@ -77,6 +80,25 @@ export default function CarFilters({ filters, onChange, onReset }: FiltersProps)
               />
               <span className="text-sm text-slate-600 group-hover:text-slate-900">{r.label}</span>
             </label>
+          ))}
+        </div>
+      </FilterSection>
+
+      {/* Body Type */}
+      <FilterSection title="Body Type">
+        <div className="flex flex-wrap gap-2">
+          {bodyTypes.map(b => (
+            <button
+              key={b}
+              onClick={() => onChange('bodyType', b)}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                filters.bodyType === b
+                  ? 'bg-blue-600 border-blue-600 text-white'
+                  : 'border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-600'
+              }`}
+            >
+              {b}
+            </button>
           ))}
         </div>
       </FilterSection>
@@ -119,7 +141,7 @@ export default function CarFilters({ filters, onChange, onReset }: FiltersProps)
         </div>
       </FilterSection>
 
-      {/* Make */}
+      {/* Brand */}
       <FilterSection title="Brand">
         <select
           value={filters.make}
@@ -130,7 +152,7 @@ export default function CarFilters({ filters, onChange, onReset }: FiltersProps)
         </select>
       </FilterSection>
 
-      {/* Location */}
+      {/* City */}
       <FilterSection title="City">
         <select
           value={filters.location}

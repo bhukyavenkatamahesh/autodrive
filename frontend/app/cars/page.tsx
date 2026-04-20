@@ -47,6 +47,7 @@ function CarsContent() {
     const location = searchParams.get('location');
     const bodyType = searchParams.get('bodyType');
     const minPrice = searchParams.get('minPrice');
+    const maxPrice = searchParams.get('maxPrice');
     const q = searchParams.get('search');
     setPage(1);
     setFilters(f => ({
@@ -56,6 +57,7 @@ function CarsContent() {
       ...(location ? { location } : {}),
       ...(bodyType ? { bodyType } : {}),
       ...(minPrice ? { minPrice: Number(minPrice) } : {}),
+      ...(maxPrice ? { maxPrice: Number(maxPrice) } : {}),
     }));
     if (q) setSearch(q);
   }, [searchParams]);

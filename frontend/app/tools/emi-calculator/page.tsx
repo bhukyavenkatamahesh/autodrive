@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Calculator, IndianRupee } from 'lucide-react';
+import { Calculator } from 'lucide-react';
 
 function calcEMI(principal: number, rate: number, months: number): number {
   if (rate === 0) return principal / months;

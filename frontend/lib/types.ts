@@ -42,4 +42,5 @@ export interface FilterState {
   minYear: number;
   maxYear: number;
   location: string;
+  bodyType: string;
 }
