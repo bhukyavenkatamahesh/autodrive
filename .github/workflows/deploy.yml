@@ -115,8 +115,8 @@ jobs:
             --set-string secrets.oauthBaseUrl="${{ vars.AUTH_PUBLIC_URL }}" \
             --set-string secrets.googleClientId="${{ secrets.GOOGLE_CLIENT_ID }}" \
             --set-string secrets.googleClientSecret="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
-            --set-string secrets.githubClientId="${{ secrets.GITHUB_CLIENT_ID }}" \
-            --set-string secrets.githubClientSecret="${{ secrets.GITHUB_CLIENT_SECRET }}" \
+            --set-string secrets.githubClientId="${{ secrets.GH_OAUTH_CLIENT_ID }}" \
+            --set-string secrets.githubClientSecret="${{ secrets.GH_OAUTH_CLIENT_SECRET }}" \
             --wait --timeout 8m
 
       - name: Show rollout status
