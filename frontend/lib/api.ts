@@ -360,7 +360,17 @@ export async function streamChat(
       body: JSON.stringify({ message, session_id: sessionId }),
     });
     if (!res.ok || !res.body) {
-      throw new Error(`Chatbot service unavailable (${res.status})`);
+      // Streaming endpoint not available — fall back to non-streaming /chat
+      // and simulate tokens by emitting small chunks with small delays.
+      const reply = await chatOnce(message, sessionId);
+      const words = reply.split(/(\s+)/);
+      for (const w of words) {
+        handlers.onToken(w);
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((r) => setTimeout(r, 20));
+      }
+      handlers.onDone?.();
+      return;
     }
 
     const reader = res.body.getReader();
