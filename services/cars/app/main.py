@@ -138,23 +138,22 @@ def _ensure_schema_and_seed() -> None:
                     cur.execute(
                         "UPDATE cars SET body_type = 'Hatchback' WHERE id::text IN ('1','9','11') AND body_type IS NULL"
                     )
-                    cur.execute("SELECT COUNT(*) FROM cars")
-                    if cur.fetchone()[0] == 0:
-                        for car in CARS:
-                            cur.execute(
-                                """
-                                INSERT INTO cars (
-                                  id, make, model, year, price, ml_price, mileage, fuel_type,
-                                  transmission, location, image, images, color, description,
-                                  owners, rating, reviews, features, engine_cc, seating, body_type
-                                ) VALUES (
-                                  %(id)s, %(make)s, %(model)s, %(year)s, %(price)s, %(ml_price)s, %(mileage)s, %(fuel_type)s,
-                                  %(transmission)s, %(location)s, %(image)s, %(images)s, %(color)s, %(description)s,
-                                  %(owners)s, %(rating)s, %(reviews)s, %(features)s, %(engine_cc)s, %(seating)s, %(body_type)s
-                                )
-                                """,
-                                _jsonb(car.model_dump()),
+                    for car in CARS:
+                        cur.execute(
+                            """
+                            INSERT INTO cars (
+                              id, make, model, year, price, ml_price, mileage, fuel_type,
+                              transmission, location, image, images, color, description,
+                              owners, rating, reviews, features, engine_cc, seating, body_type
+                            ) VALUES (
+                              %(id)s, %(make)s, %(model)s, %(year)s, %(price)s, %(ml_price)s, %(mileage)s, %(fuel_type)s,
+                              %(transmission)s, %(location)s, %(image)s, %(images)s, %(color)s, %(description)s,
+                              %(owners)s, %(rating)s, %(reviews)s, %(features)s, %(engine_cc)s, %(seating)s, %(body_type)s
                             )
+                            ON CONFLICT (id) DO NOTHING
+                            """,
+                            _jsonb(car.model_dump()),
+                        )
                 conn.commit()
             return
         except psycopg.OperationalError:

@@ -47,10 +47,21 @@ export default function Footer() {
               AI-powered car marketplace. Find your perfect car with smart pricing and intelligent recommendations.
             </p>
             <div className="flex gap-3">
-              {['X', 'In', 'IG'].map(label => (
-                <button key={label} className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-blue-600 flex items-center justify-center transition-colors text-xs font-bold">
+              {[
+                { label: 'X', href: 'https://x.com' },
+                { label: 'In', href: 'https://www.linkedin.com' },
+                { label: 'IG', href: 'https://www.instagram.com' },
+              ].map(({ label, href }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`AutoDrive on ${label}`}
+                  className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-blue-600 flex items-center justify-center transition-colors text-xs font-bold"
+                >
                   {label}
-                </button>
+                </a>
               ))}
             </div>
           </div>
