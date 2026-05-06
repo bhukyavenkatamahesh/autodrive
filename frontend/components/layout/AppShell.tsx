@@ -8,14 +8,14 @@ import ChatWidget from '@/components/chat/ChatWidget';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAssistantPage = pathname === '/chat' || pathname === '/voice';
+  const hideFloatingChat = pathname === '/chat' || pathname === '/voice';
 
   return (
     <AuthProvider>
       <Navbar />
       <main>{children}</main>
-      {!isAssistantPage && <Footer />}
-      {!isAssistantPage && <ChatWidget />}
+      <Footer />
+      {!hideFloatingChat && <ChatWidget />}
     </AuthProvider>
   );
 }
