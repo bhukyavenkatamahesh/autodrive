@@ -1,101 +1,105 @@
-# AutoDrive
+# AutoDrive — Cloud Native Used-Car Marketplace
 
 AI-powered used-car marketplace, deployed on Microsoft Azure with a full
 production-grade cloud stack.
 
 **Live demo:** https://autodriveai.duckdns.org
-**Chatbot (Ashad, separate repo/Azure account):** https://autodrive-chatbot.azurewebsites.net
+**Chatbot (Ashad):** https://autodrive-chatbot.azurewebsites.net
+**ML service (Samarth):** https://autodrive-ml-samarth.azurewebsites.net (Swagger: `/docs`)
 
-Built for the Cloud Computing course at IIT Delhi.
+Built for the Cloud Computing course at IIT Delhi by:
+**Venkata Mahesh** (frontend, auth, cars, reviews, infra) ·
+**Ashad** (RAG chatbot) ·
+**Samarth** (ML price + sentiment) ·
+**Pritam** (backend support)
 
 ---
 
 ## What it does
 
-- Browse verified used cars with filters (brand, fuel type, body type, price range, location)
-- AI chatbot ("CarBot") integrated from Ashad's separately deployed Azure service
-- ML-based fair-price prediction integrated from Samarth's separately deployed Azure service
-- Login with email/password, Google, or GitHub OAuth
+- Browse used cars with filters (brand, fuel type, body type, price, location, search, sort)
+- AI chatbot ("CarBot") — RAG over live inventory, voice-enabled, deployed by Ashad on App Service
+- ML-based fair-price prediction (XGBoost) + sentiment analysis (DistilBERT) — deployed by Samarth on App Service
+- Email / password login + JWT auth
 - Test-drive booking with conflict detection
-- Admin panel to post/edit/delete cars
+- Reviews with auto-tagged sentiment badge (positive / negative / neutral)
+- Admin panel to post / edit / delete cars
 
 ---
 
-## Architecture
+## System Architecture
 
 ```
-                         ┌─────────────────────────────────┐
-                         │  autodriveai.duckdns.org (HTTPS)│
-                         │  Let's Encrypt cert (auto-renew)│
-                         └───────────────┬─────────────────┘
-                                         │
-                         ┌───────────────▼─────────────────┐
-                         │      NGINX Ingress Controller   │
-                         │      (Azure public LB)          │
-                         └──┬────────────┬────────────┬────┘
-                            │            │            │
-                  ┌─────────▼──┐  ┌──────▼───┐  ┌─────▼──────┐
-                  │  frontend  │  │   auth   │  │   cars     │
-                  │ (Next.js)  │  │(Fastify) │  │ (FastAPI)  │
-                  │  2 pods    │  │ 2 pods   │  │  2 pods    │
-                  │  HPA 2→4   │  │ HPA 2→5  │  │  HPA 2→5   │
-                  └────────────┘  └─────┬────┘  └──────┬─────┘
-                                        │              │
-                                        └──────┬───────┘
-                                               │
-                             ┌─────────────────▼──────────────────┐
-                             │  Azure Postgres Flexible Server    │
-                             │  (v16, Standard_B1ms)              │
-                             └────────────────────────────────────┘
+                                 ┌──────────────────────────────────┐
+                                 │  autodriveai.duckdns.org (HTTPS) │
+                                 │  Let's Encrypt — auto-renew      │
+                                 └────────────────┬─────────────────┘
+                                                  │
+                                       ┌──────────▼──────────┐
+                                       │ Azure Public LB     │
+                                       └──────────┬──────────┘
+                                                  │
+                                       ┌──────────▼──────────┐
+                                       │ NGINX Ingress       │
+                                       │ (TLS termination)   │
+                                       └─┬────┬────┬────┬────┘
+                                         │    │    │    │
+            /                /auth        │ /api  /reviews
+            │                  │          │  │       │
+        ┌───▼────┐         ┌───▼────┐  ┌──▼──▼──┐ ┌──▼──────┐
+        │frontend│         │  auth  │  │  cars  │ │ reviews │
+        │Next.js │         │Fastify │  │FastAPI │ │ Fastify │
+        │  AKS   │         │  AKS   │  │  AKS   │ │   AKS   │
+        └────────┘         └───┬────┘  └────┬───┘ └────┬────┘
+                               │            │          │
+                               └────────────┼──────────┘
+                                            │
+                              ┌─────────────▼─────────────┐
+                              │  Azure Postgres Flexible   │
+                              │  Server (v16, Burstable)   │
+                              └────────────────────────────┘
 
-        ┌──────────────────────────────────────────────────────────────┐
-        │  Azure Key Vault — postgres-url, jwt-secret, OAuth, AppI     │
-        │  Azure Container Registry — images pushed by CI              │
-        │  Application Insights + Log Analytics — APM & centralised    │
-        └──────────────────────────────────────────────────────────────┘
+  External services (cross-account, integrated via HTTPS):
 
-  (cross-account) ↔  Ashad's Chatbot (App Service, different Azure sub)
-  (cross-account) ↔  Samarth's ML price/sentiment services (App Service, different repo/sub)
+  Ashad's Chatbot ←  iframe / redirect from /chat
+  ──────────────────────────────────────────────────
+  https://autodrive-chatbot.azurewebsites.net
+  FastAPI on Azure App Service · GPT-4o · RAG over live cars
+
+  Samarth's ML  ←  POST /predict/price + POST /sentiment
+  ──────────────────────────────────────────────────
+  https://autodrive-ml-samarth.azurewebsites.net
+  FastAPI on Azure App Service · XGBoost · DistilBERT
 ```
 
-All infrastructure is declared in Terraform. Every git push to `main`
-triggers GitHub Actions: build Docker images → push to ACR → `helm
-upgrade` against AKS.
+All infrastructure is declared in Terraform. Every push to `main` triggers
+GitHub Actions: build Docker images → push to ACR → `helm upgrade` against
+AKS → cert-manager renews TLS → ingress routes traffic.
 
 ---
 
 ## Cloud services in use
 
-| Service | Purpose |
+| Service | Role |
 |---|---|
-| **Azure Kubernetes Service (AKS)** | Runs frontend + auth + cars as Helm-managed deployments with HPA |
-| **Azure Container Registry (ACR)** | Stores Docker images for all 3 services |
-| **Azure Database for PostgreSQL (Flexible Server)** | Cars, users, bookings, reviews |
-| **Azure Key Vault (RBAC mode)** | DB URL, JWT, OAuth creds, AppInsights string. CI fetches at deploy time |
+| **Azure Kubernetes Service (AKS)** | Runs frontend + auth + cars + reviews as Helm-managed deployments |
+| **Azure Container Registry (ACR)** | Stores Docker images for all 4 services |
+| **Azure Database for PostgreSQL Flexible Server** | Cars, users, bookings (in-memory for reviews) |
+| **Azure Key Vault (RBAC mode)** | Postgres URL, JWT secret, AppInsights string — fetched by CI |
 | **Azure Log Analytics Workspace** | Central logs from AKS containers |
 | **Azure Application Insights** | APM + request tracing (workspace-based) |
 | **Azure Public Load Balancer** | Front door via NGINX Ingress |
-| **Managed Identity on AKS** | Pulls from ACR + reads Key Vault without static creds in cluster |
-| **cert-manager + Let's Encrypt** | Automated TLS cert issuance + renewal |
+| **Managed Identity on AKS** | ACR pull + Key Vault read with no static creds in cluster |
+| **cert-manager + Let's Encrypt** | Automated TLS issuance + renewal |
 | **GitHub Actions** | CI/CD — build, push to ACR, helm upgrade |
 | **DuckDNS** | Free DNS pointing at the AKS load-balancer IP |
 
-## External teammate services
-
-Ashad and Samarth deploy their services from separate repositories/Azure accounts.
-This repo integrates them over HTTP:
+External (different Azure subscriptions):
 
 | Owner | Service | Live URL | Used by |
 |---|---|---|---|
-| Ashad | Chatbot | `https://autodrive-chatbot.azurewebsites.net` | Frontend `/chat` redirect + floating assistant |
-| Samarth | ML price + sentiment | `https://autodrive-ml-samarth.azurewebsites.net` | Frontend price prediction + reviews sentiment |
-
-Required integration variables:
-
-```env
-NEXT_PUBLIC_ML_PRICE_API_URL=https://autodrive-ml-samarth.azurewebsites.net
-SENTIMENT_API_URL=https://autodrive-ml-samarth.azurewebsites.net/sentiment
-```
+| Ashad | Chatbot | `https://autodrive-chatbot.azurewebsites.net` | `/chat` redirect + floating widget iframe |
+| Samarth | ML price + sentiment | `https://autodrive-ml-samarth.azurewebsites.net` | Frontend price valuation + reviews sentiment |
 
 ---
 
@@ -104,48 +108,45 @@ SENTIMENT_API_URL=https://autodrive-ml-samarth.azurewebsites.net/sentiment
 ```
 autodrive/
 ├── frontend/              # Next.js 14 app (standalone build, TS, Tailwind)
-│   └── Dockerfile         # baked-in NEXT_PUBLIC_* for relative API paths
+│   └── Dockerfile
 ├── services/
-│   ├── auth/              # Fastify + JWT + OAuth (Node 20)
-│   ├── cars/              # FastAPI + psycopg (Python 3.11)
-│   └── reviews/           # Fastify review API; calls Samarth's sentiment URL
+│   ├── auth/              # Fastify + JWT (Node 20)
+│   ├── cars/              # FastAPI + psycopg (Python 3.11) — primary data API
+│   └── reviews/           # Fastify + JWT — calls Samarth's /sentiment
 ├── infra/
-│   ├── terraform/         # RG, AKS, ACR, Postgres, KV, AI, LAW
-│   └── helm/autodrive/    # Single chart for all 3 services
+│   ├── terraform/         # RG, AKS, ACR, Postgres, KV, AppInsights, LAW
+│   └── helm/autodrive/    # Single chart for all 4 services
 │       └── templates/     # deployments + svc + HPA + ingress + TLS
 ├── .github/workflows/
 │   └── deploy.yml         # build-and-push → helm-deploy
-└── DEPLOY.md              # end-to-end first-deploy guide
+├── DEPLOY.md              # end-to-end first-deploy guide
+└── README.md
 ```
 
 ---
 
-## Request flow (loading the homepage)
+## Request flow (loading a car detail page)
 
-1. Browser → `https://autodriveai.duckdns.org/`
-2. Azure LB → NGINX ingress → `frontend` service → Next.js pod
-3. Next.js pod renders and calls `/api/cars` to populate listings
-4. NGINX ingress matches `/api(/|$)(.*)` rule, strips prefix, routes to `cars`
-5. `cars` pod queries Postgres Flexible Server over SSL
-6. Response bubbles back up the same chain
-7. TLS is terminated at the ingress; all secrets come from Key Vault
-   (fetched at deploy time, mounted as K8s Secrets)
+1. Browser → `https://autodriveai.duckdns.org/cars/1`
+2. Azure LB → NGINX ingress → TLS terminate → `frontend` pod
+3. Next.js renders, fires `GET /api/cars/1` for car data
+4. Ingress regex `/api(/|$)(.*)` strips prefix → `cars` pod → Postgres → JSON
+5. Browser fires `POST https://autodrive-ml-samarth.azurewebsites.net/predict/price` for live ML valuation
+6. Browser fires `GET /reviews/1` → ingress → `reviews` pod → in-memory list
+7. Posting a review → `POST /reviews/1` → reviews pod → calls Samarth's `/sentiment` → review saved with sentiment label
 
 ---
 
-## Auto-scaling
-
-Each service has an HPA (HorizontalPodAutoscaler v2):
+## Auto-scaling (HPA v2)
 
 | Service | Min | Max | Target CPU |
 |---|---|---|---|
-| auth | 2 | 5 | 70% |
-| cars | 2 | 5 | 70% |
-| frontend | 2 | 4 | 75% |
+| auth | 1 | 4 | 70% |
+| cars | 1 | 4 | 70% |
+| frontend | 1 | 3 | 75% |
 | reviews | 1 | 3 | 70% |
 
-Load-test with `hey` / `ab` scales pods 2 → 4-5 in ~60s and back down
-after cooldown.
+(Tuned for a single Standard_B2s node. Bump min/max when scaling node pool.)
 
 ---
 
@@ -153,14 +154,18 @@ after cooldown.
 
 Every push to `main`:
 
-1. **build-and-push** — builds Docker images (auth, cars, reviews, frontend),
-   tags `:sha` and `:latest`, pushes to ACR
+1. **build-and-push** — builds 4 Docker images (auth, cars, reviews, frontend),
+   tags with the commit SHA + `:latest`, pushes to ACR
 2. **helm-deploy** — fetches Postgres URL + JWT secret from Key Vault,
    runs `helm upgrade --install autodrive infra/helm/autodrive` with the
-   new image tags, waits for rollout (8 min timeout)
+   new image tags, waits for rollout
 
-Secrets live as GitHub repo secrets; environment config as GitHub repo
-variables. See `.github/workflows/deploy.yml`.
+GitHub repo secrets: `AZURE_CREDENTIALS`.
+GitHub repo variables: `AZURE_RESOURCE_GROUP`, `AKS_CLUSTER_NAME`, `ACR_NAME`,
+`KEY_VAULT_NAME`, `CHATBOT_PUBLIC_URL`, `FRONTEND_PUBLIC_URL`, `INGRESS_HOST`,
+`INGRESS_TLS_ENABLED`.
+
+See `.github/workflows/deploy.yml`.
 
 ---
 
@@ -170,13 +175,13 @@ variables. See `.github/workflows/deploy.yml`.
 # Backend
 cd services/cars && pip install -r requirements.txt && uvicorn app.main:app --port 8001
 cd services/auth && npm install && npm run dev
+cd services/reviews && npm install && npm run dev
 
 # Frontend
 cd frontend && npm install && npm run dev
 ```
 
-Needs a local Postgres. Each service defaults to
-`postgresql://postgres:postgres@localhost:5432/autodrive`.
+Each service defaults to `postgresql://postgres:postgres@localhost:5432/autodrive`.
 
 ---
 
@@ -193,21 +198,12 @@ terraform init && terraform apply
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.3/deploy/static/provider/cloud/deploy.yaml
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.3/cert-manager.yaml
 
-# Point your domain at the ingress public IP, then configure GitHub
-# secrets + variables and push to main — CI does the rest.
+# Point your domain at the ingress IP, configure GitHub secrets/vars,
+# then push to main — CI does the rest.
 ```
-
----
-
-## Team
-
-- **Venkata Mahesh** — frontend + backend (auth, cars) + infra + AKS deployment
-- **Pritam** — backend reviews service in this repo
-- **Ashad** — AI chatbot in a separate repo, deployed separately on Azure App Service
-- **Samarth** — ML price prediction + sentiment service in a separate repo/deployment
 
 ---
 
 ## License
 
-MIT — IIT Delhi Cloud Computing course project, April 2026.
+MIT — IIT Delhi Cloud Computing course project.
