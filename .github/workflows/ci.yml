@@ -29,6 +29,7 @@ jobs:
           test -f frontend/package.json
           test -f services/auth/package.json
           test -f services/cars/requirements.txt
+          test -f services/reviews/package.json
           test -f infra/terraform/main.tf
 
       - name: Install frontend dependencies
@@ -50,9 +51,28 @@ jobs:
           AUTH_USE_INMEMORY: "true"
         run: npm test
 
+      - name: Install reviews dependencies
+        working-directory: services/reviews
+        run: npm ci
+
+      - name: Run reviews tests
+        working-directory: services/reviews
+        env:
+          NODE_ENV: test
+        run: npm test
+
       - name: Install cars dependencies
         working-directory: services/cars
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Compile cars service
+        run: python -m py_compile services/cars/app/main.py services/cars/app/auth.py services/cars/app/bookings.py services/cars/app/models.py
+
+      - name: Build Docker images
+        run: |
+          docker build -t autodrive-frontend:test frontend
+          docker build -t autodrive-auth:test services/auth
+          docker build -t autodrive-cars:test services/cars
+          docker build -t autodrive-reviews:test services/reviews

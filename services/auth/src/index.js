@@ -140,7 +140,9 @@ export async function buildApp() {
     }
   });
 
-  app.get("/health", async () => ({ service: "auth", status: "ok" }));
+  const healthHandler = async () => ({ service: "auth", status: "ok" });
+  app.get("/health", healthHandler);
+  app.get("/auth/health", healthHandler);
 
   const registerHandler = async (req, reply) => {
     const { name, email, password, role } = req.body ?? {};

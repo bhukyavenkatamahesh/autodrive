@@ -4,7 +4,7 @@ AI-powered used-car marketplace, deployed on Microsoft Azure with a full
 production-grade cloud stack.
 
 **Live demo:** https://autodriveai.duckdns.org
-**Chatbot (separate Azure account):** https://autodrive-chatbot.azurewebsites.net
+**Chatbot (Ashad, separate repo/Azure account):** https://autodrive-chatbot.azurewebsites.net
 
 Built for the Cloud Computing course at IIT Delhi.
 
@@ -13,8 +13,8 @@ Built for the Cloud Computing course at IIT Delhi.
 ## What it does
 
 - Browse verified used cars with filters (brand, fuel type, body type, price range, location)
-- AI chatbot ("CarBot") for natural-language car discovery (RAG over the live car inventory)
-- ML-based fair-price prediction shown alongside every listing
+- AI chatbot ("CarBot") integrated from Ashad's separately deployed Azure service
+- ML-based fair-price prediction integrated from Samarth's separately deployed Azure service
 - Login with email/password, Google, or GitHub OAuth
 - Test-drive booking with conflict detection
 - Admin panel to post/edit/delete cars
@@ -55,6 +55,7 @@ Built for the Cloud Computing course at IIT Delhi.
         └──────────────────────────────────────────────────────────────┘
 
   (cross-account) ↔  Ashad's Chatbot (App Service, different Azure sub)
+  (cross-account) ↔  Samarth's ML price/sentiment services (App Service, different repo/sub)
 ```
 
 All infrastructure is declared in Terraform. Every git push to `main`
@@ -89,7 +90,8 @@ autodrive/
 │   └── Dockerfile         # baked-in NEXT_PUBLIC_* for relative API paths
 ├── services/
 │   ├── auth/              # Fastify + JWT + OAuth (Node 20)
-│   └── cars/              # FastAPI + psycopg (Python 3.11)
+│   ├── cars/              # FastAPI + psycopg (Python 3.11)
+│   └── reviews/           # Fastify review API; calls Samarth's sentiment URL
 ├── infra/
 │   ├── terraform/         # RG, AKS, ACR, Postgres, KV, AI, LAW
 │   └── helm/autodrive/    # Single chart for all 3 services
@@ -123,6 +125,7 @@ Each service has an HPA (HorizontalPodAutoscaler v2):
 | auth | 2 | 5 | 70% |
 | cars | 2 | 5 | 70% |
 | frontend | 2 | 4 | 75% |
+| reviews | 1 | 3 | 70% |
 
 Load-test with `hey` / `ab` scales pods 2 → 4-5 in ~60s and back down
 after cooldown.
@@ -133,7 +136,7 @@ after cooldown.
 
 Every push to `main`:
 
-1. **build-and-push** — builds 3 Docker images (auth, cars, frontend),
+1. **build-and-push** — builds Docker images (auth, cars, reviews, frontend),
    tags `:sha` and `:latest`, pushes to ACR
 2. **helm-deploy** — fetches Postgres URL + JWT secret from Key Vault,
    runs `helm upgrade --install autodrive infra/helm/autodrive` with the
@@ -181,10 +184,10 @@ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/
 
 ## Team
 
-- **Venkata Mahesh** — frontend + backend (auth, cars) + infra + deployment
-- **Ashad** — AI chatbot (deployed separately on Azure App Service)
-- **Pritam** — backend (reviews service)
-- **Samarth** — ML price prediction model
+- **Venkata Mahesh** — frontend + backend (auth, cars) + infra + AKS deployment
+- **Pritam** — backend reviews service in this repo
+- **Ashad** — AI chatbot in a separate repo, deployed separately on Azure App Service
+- **Samarth** — ML price prediction + sentiment service in a separate repo/deployment
 
 ---
 
