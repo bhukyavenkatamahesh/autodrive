@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Car } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -55,6 +56,10 @@ function speak(text: string) {
 }
 function stopSpeaking() {
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+}
+
+function AutoDriveMark({ size = 20 }: { size?: number }) {
+  return <Car size={size} color="white" strokeWidth={2.4} />;
 }
 
 // ── Component ─────────────────────────────────────────────────────────
@@ -223,7 +228,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
           transition: 'transform .2s, box-shadow .2s',
         }}
       >
-        {isOpen ? '✕' : '🚗'}
+        {isOpen ? '✕' : <AutoDriveMark size={24} />}
       </button>
 
       {/* ── Chat panel ── */}
@@ -245,11 +250,15 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{
+              <div aria-hidden="true" style={{
                 width: 36, height: 36, borderRadius: 10,
-                background: 'rgba(255,255,255,.18)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
-              }}>🤖</div>
+                background: C.blue600,
+                border: '1px solid rgba(255,255,255,.28)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 8px 20px rgba(15,23,42,.16)',
+              }}>
+                <AutoDriveMark size={19} />
+              </div>
               <div>
                 <div style={{ color: 'white', fontWeight: 700, fontSize: 14, letterSpacing: '-.2px' }}>{title}</div>
                 <div style={{ color: 'rgba(255,255,255,.75)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -277,7 +286,14 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
             {messages.length === 0 && (
               <div style={{ padding: '20px 0' }}>
                 <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>🚗</div>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 14, margin: '0 auto 10px',
+                    background: C.blue600,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 10px 24px rgba(37,99,235,.24)',
+                  }}>
+                    <AutoDriveMark size={23} />
+                  </div>
                   <p style={{ color: C.slate600, fontSize: 13, lineHeight: 1.6 }}>
                     Hi! I know every car in our inventory.<br />Ask me anything or try a suggestion:
                   </p>
@@ -302,12 +318,13 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
                 gap: 8, alignItems: 'flex-end',
               }}>
                 {msg.role === 'assistant' && (
-                  <div style={{
+                  <div aria-hidden="true" style={{
                     width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                    background: `linear-gradient(135deg, ${C.blue600}, ${C.violet600})`,
+                    background: C.blue600,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 13,
-                  }}>🤖</div>
+                  }}>
+                    <AutoDriveMark size={15} />
+                  </div>
                 )}
                 <div style={{
                   maxWidth: '78%',
