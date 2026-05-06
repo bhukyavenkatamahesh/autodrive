@@ -124,7 +124,7 @@ jobs:
             --set-string secrets.frontendUrl="${{ vars.FRONTEND_PUBLIC_URL }}" \
             --set "ingress.host=${{ vars.INGRESS_HOST }}" \
             --set "ingress.tls.enabled=${{ vars.INGRESS_TLS_ENABLED }}" \
-            --wait --timeout 8m
+            --wait --timeout 15m
 
       - name: Show rollout status
         run: |

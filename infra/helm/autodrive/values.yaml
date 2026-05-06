@@ -82,7 +82,7 @@ reviews:
   image:
     repository: autodrive-reviews
     tag: latest
-  replicaCount: 2
+  replicaCount: 1
   port: 4002
   sentimentApiUrl: "https://autodrive-ml-samarth.azurewebsites.net/sentiment"
   resources:
