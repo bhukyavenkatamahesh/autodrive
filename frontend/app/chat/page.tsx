@@ -1,26 +1,32 @@
 'use client';
-
-import { useEffect } from 'react';
+import { ExternalLink } from 'lucide-react';
 
 const CHATBOT_URL = 'https://autodrive-chatbot.azurewebsites.net';
 
 export default function ChatPage() {
-  useEffect(() => {
-    window.location.replace(CHATBOT_URL);
-  }, []);
-
   return (
-    <main className="min-h-[60vh] bg-slate-50 flex items-center justify-center px-4">
-      <div className="text-center">
-        <h1 className="text-2xl font-black text-slate-900 mb-2">Opening AutoDrive AI...</h1>
-        <p className="text-slate-500 mb-5">Taking you to Ashad&apos;s deployed chatbot service.</p>
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      {/* Slim top bar */}
+      <div className="bg-gradient-to-r from-blue-600 to-violet-600 text-white px-4 py-2 flex justify-end flex-shrink-0">
         <a
           href={CHATBOT_URL}
-          className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-blue-100 hover:text-white text-xs transition-colors"
         >
-          Open Chatbot
+          <ExternalLink size={13} />
+          Open full screen
         </a>
       </div>
-    </main>
+
+      {/* Ashad's RAG-based chatbot embedded */}
+      <iframe
+        src={CHATBOT_URL}
+        title="AutoDrive AI Chatbot"
+        className="flex-1 w-full border-0"
+        style={{ minHeight: 'calc(100vh - 40px)' }}
+        allow="microphone"
+      />
+    </div>
   );
 }
