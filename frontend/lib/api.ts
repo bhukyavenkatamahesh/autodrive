@@ -12,7 +12,8 @@ const CARS_API = process.env.NEXT_PUBLIC_CARS_API_URL ?? 'http://localhost:8001'
 const AUTH_API = process.env.NEXT_PUBLIC_AUTH_API_URL ?? 'http://localhost:4001';
 const REVIEWS_API = process.env.NEXT_PUBLIC_REVIEWS_API_URL ?? 'http://localhost:4002';
 const CHATBOT_API = process.env.NEXT_PUBLIC_CHATBOT_API_URL ?? 'https://autodrive-chatbot.azurewebsites.net';
-const ML_PRICE_API = process.env.NEXT_PUBLIC_ML_PRICE_API_URL ?? 'http://localhost:8003';
+const ML_PRICE_API =
+  process.env.NEXT_PUBLIC_ML_PRICE_API_URL ?? 'https://autodrive-ml-samarth.azurewebsites.net';
 
 // ── Field name mapping ─────────────────────────────────────────────────────
 // Python backend uses snake_case; TypeScript frontend uses camelCase.

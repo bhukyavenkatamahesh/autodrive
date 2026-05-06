@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const DEFAULT_JWT_SECRET = "autodrive-dev-secret-change-in-prod";
-const DEFAULT_SENTIMENT_URL = "http://localhost:7071/api/sentiment";
+const DEFAULT_SENTIMENT_URL = "https://autodrive-ml-samarth.azurewebsites.net/sentiment";
 
 function publicReview(r) {
   return {

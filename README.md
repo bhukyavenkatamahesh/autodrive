@@ -80,6 +80,23 @@ upgrade` against AKS.
 | **GitHub Actions** | CI/CD — build, push to ACR, helm upgrade |
 | **DuckDNS** | Free DNS pointing at the AKS load-balancer IP |
 
+## External teammate services
+
+Ashad and Samarth deploy their services from separate repositories/Azure accounts.
+This repo integrates them over HTTP:
+
+| Owner | Service | Live URL | Used by |
+|---|---|---|---|
+| Ashad | Chatbot | `https://autodrive-chatbot.azurewebsites.net` | Frontend `/chat` redirect + floating assistant |
+| Samarth | ML price + sentiment | `https://autodrive-ml-samarth.azurewebsites.net` | Frontend price prediction + reviews sentiment |
+
+Required integration variables:
+
+```env
+NEXT_PUBLIC_ML_PRICE_API_URL=https://autodrive-ml-samarth.azurewebsites.net
+SENTIMENT_API_URL=https://autodrive-ml-samarth.azurewebsites.net/sentiment
+```
+
 ---
 
 ## Repository layout
