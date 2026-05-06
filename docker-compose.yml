@@ -15,7 +15,7 @@ services:
       NEXT_PUBLIC_AUTH_API_URL: http://localhost:4001
       NEXT_PUBLIC_REVIEWS_API_URL: http://localhost:4002
       NEXT_PUBLIC_CHATBOT_API_URL: http://localhost:8002
-      NEXT_PUBLIC_ML_PRICE_API_URL: http://localhost:8003
+      NEXT_PUBLIC_ML_PRICE_API_URL: https://autodrive-ml-samarth.azurewebsites.net
     depends_on:
       - auth
       - cars
@@ -76,8 +76,7 @@ services:
     environment:
       JWT_SECRET: ${JWT_SECRET:-autodrive-change-this-secret-in-production}
       PORT: "4002"
-      # Points at the sentiment Function App running locally.
-      SENTIMENT_API_URL: http://sentiment:7071/api/sentiment
+      SENTIMENT_API_URL: https://autodrive-ml-samarth.azurewebsites.net/sentiment
 
   chatbot:
     build:
@@ -87,18 +86,6 @@ services:
     environment:
       CARS_API_URL: http://cars:8001
 
-  ml-price:
-    build:
-      context: ./services/ml-price
-    ports:
-      - "8003:8003"
-
-  sentiment:
-    build:
-      context: ./services/sentiment
-    platform: linux/amd64   # Azure Functions image has no arm64 variant
-    ports:
-      - "7071:7071"
 
 volumes:
   pgdata:

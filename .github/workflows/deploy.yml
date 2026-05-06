@@ -8,6 +8,7 @@ on:
       - 'frontend/**'
       - 'services/auth/**'
       - 'services/cars/**'
+      - 'services/reviews/**'
       - 'infra/helm/**'
       - '.github/workflows/deploy.yml'
 
@@ -56,6 +57,13 @@ jobs:
           docker push "${IMAGE}:${{ steps.meta.outputs.tag }}"
           docker push "${IMAGE}:latest"
 
+      - name: Build + push reviews image
+        run: |
+          IMAGE="${ACR_NAME}.azurecr.io/autodrive-reviews"
+          docker build -t "${IMAGE}:${{ steps.meta.outputs.tag }}" -t "${IMAGE}:latest" services/reviews
+          docker push "${IMAGE}:${{ steps.meta.outputs.tag }}"
+          docker push "${IMAGE}:latest"
+
       - name: Build + push frontend image
         run: |
           IMAGE="${ACR_NAME}.azurecr.io/autodrive-frontend"
@@ -64,6 +72,7 @@ jobs:
             --build-arg NEXT_PUBLIC_AUTH_API_URL=/auth \
             --build-arg NEXT_PUBLIC_REVIEWS_API_URL=/reviews \
             --build-arg NEXT_PUBLIC_CHATBOT_API_URL="${CHATBOT_URL}" \
+            --build-arg NEXT_PUBLIC_ML_PRICE_API_URL=https://autodrive-ml-samarth.azurewebsites.net \
             -t "${IMAGE}:${{ steps.meta.outputs.tag }}" -t "${IMAGE}:latest" frontend
           docker push "${IMAGE}:${{ steps.meta.outputs.tag }}"
           docker push "${IMAGE}:latest"
@@ -108,15 +117,11 @@ jobs:
             --set image.registry="${ACR_NAME}.azurecr.io" \
             --set auth.image.tag="${TAG}" \
             --set cars.image.tag="${TAG}" \
+            --set reviews.image.tag="${TAG}" \
             --set frontend.image.tag="${TAG}" \
             --set-string secrets.databaseUrl="${{ steps.kv.outputs.db_url }}" \
             --set-string secrets.jwtSecret="${{ steps.kv.outputs.jwt_secret }}" \
             --set-string secrets.frontendUrl="${{ vars.FRONTEND_PUBLIC_URL }}" \
-            --set-string secrets.oauthBaseUrl="${{ vars.AUTH_PUBLIC_URL }}" \
-            --set-string secrets.googleClientId="${{ secrets.GOOGLE_CLIENT_ID }}" \
-            --set-string secrets.googleClientSecret="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
-            --set-string secrets.githubClientId="${{ secrets.GH_OAUTH_CLIENT_ID }}" \
-            --set-string secrets.githubClientSecret="${{ secrets.GH_OAUTH_CLIENT_SECRET }}" \
             --set "ingress.host=${{ vars.INGRESS_HOST }}" \
             --set "ingress.tls.enabled=${{ vars.INGRESS_TLS_ENABLED }}" \
             --wait --timeout 8m

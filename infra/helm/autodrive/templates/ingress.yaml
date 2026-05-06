@@ -77,4 +77,11 @@ spec:
                 name: {{ include "autodrive.fullname" . }}-cars
                 port:
                   number: {{ .Values.cars.port }}
+          - path: /reviews(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: {{ include "autodrive.fullname" . }}-reviews
+                port:
+                  number: {{ .Values.reviews.port }}
 {{- end }}

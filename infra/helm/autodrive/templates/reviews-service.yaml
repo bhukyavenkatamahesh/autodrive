@@ -1,0 +1,18 @@
+{{- if .Values.reviews.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "autodrive.fullname" . }}-reviews
+  labels:
+    {{- include "autodrive.labels" . | nindent 4 }}
+    app.kubernetes.io/component: reviews
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: {{ include "autodrive.name" . }}
+    app.kubernetes.io/component: reviews
+  ports:
+    - name: http
+      port: {{ .Values.reviews.port }}
+      targetPort: {{ .Values.reviews.port }}
+{{- end }}

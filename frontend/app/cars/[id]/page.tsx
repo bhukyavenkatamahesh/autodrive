@@ -7,8 +7,8 @@ import {
   Calendar, TrendingUp, Bot, Phone,
   ChevronLeft, ChevronRight, Sparkles, CheckCircle, Trash2,
 } from 'lucide-react';
-import { getCarById, getCars, getReviews, postReview, deleteReview } from '@/lib/api';
-import type { ReviewsResponse } from '@/lib/api';
+import { getCarById, getCars, getReviews, postReview, deleteReview, predictPrice } from '@/lib/api';
+import type { ReviewsResponse, PricePrediction } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
 import { Car } from '@/lib/types';
 import CarCard from '@/components/cars/CarCard';
@@ -32,6 +32,9 @@ export default function CarDetailPage({ params }: { params: { id: string } }) {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [booked, setBooked] = useState(false);
 
+  const [mlPrediction, setMlPrediction] = useState<PricePrediction | null>(null);
+  const [mlLoading, setMlLoading] = useState(false);
+
   const [reviewsData, setReviewsData] = useState<ReviewsResponse | null>(null);
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState('');
@@ -44,6 +47,18 @@ export default function CarDetailPage({ params }: { params: { id: string } }) {
       .then(carData => {
         setCar(carData);
         if (carData) {
+          setMlLoading(true);
+          predictPrice({
+            make: carData.make,
+            model: carData.model,
+            year: carData.year,
+            mileage: carData.mileage,
+            fuelType: carData.fuelType,
+            location: carData.location,
+          })
+            .then(setMlPrediction)
+            .catch(() => {})
+            .finally(() => setMlLoading(false));
           getCars({ make: carData.make, limit: 12 })
             .then(r => setSimilar(r.cars.filter(c => c.id !== id).slice(0, 3)))
             .catch(() => {});
@@ -113,7 +128,8 @@ export default function CarDetailPage({ params }: { params: { id: string } }) {
   }
 
   const images = car.images?.length ? car.images : [car.image];
-  const priceDiff = car.mlPrice ? car.mlPrice - car.price : 0;
+  const liveMlPrice = mlPrediction?.predictedPrice ?? car.mlPrice;
+  const priceDiff = liveMlPrice ? liveMlPrice - car.price : 0;
   const isDeal = priceDiff > 0;
 
   const specs = [
@@ -222,32 +238,47 @@ export default function CarDetailPage({ params }: { params: { id: string } }) {
               </div>
             )}
 
-            {/* AI Price analysis */}
-            {car.mlPrice && (
-              <div className={`rounded-2xl border p-5 ${isDeal ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'}`}>
+            {/* AI Price analysis — always shown, fetched live from ML service */}
+            {(mlLoading || liveMlPrice) && (
+              <div className={`rounded-2xl border p-5 ${mlLoading ? 'bg-slate-50 border-slate-200' : isDeal ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'}`}>
                 <div className="flex items-center gap-2 mb-3">
-                  <Sparkles size={18} className={isDeal ? 'text-green-600' : 'text-orange-600'} />
-                  <h3 className={`font-bold ${isDeal ? 'text-green-800' : 'text-orange-800'}`}>
+                  <Sparkles size={18} className={mlLoading ? 'text-slate-400' : isDeal ? 'text-green-600' : 'text-orange-600'} />
+                  <h3 className={`font-bold ${mlLoading ? 'text-slate-500' : isDeal ? 'text-green-800' : 'text-orange-800'}`}>
                     AI Price Analysis
                   </h3>
                   <span className="text-xs bg-white/60 px-2 py-0.5 rounded-full text-slate-600">ML Model</span>
                 </div>
-                <div className="flex items-baseline gap-3 mb-2">
-                  <span className="text-3xl font-black text-slate-900">{formatPrice(car.price)}</span>
-                  <span className="text-slate-500 text-sm">Listed Price</span>
-                </div>
-                <div className={`flex items-center gap-2 text-sm font-semibold ${isDeal ? 'text-green-700' : 'text-orange-700'}`}>
-                  <TrendingUp size={15} />
-                  AI Fair Value: {formatPrice(car.mlPrice)}
-                  <span className="font-normal text-slate-500">
-                    ({isDeal
-                      ? `₹${priceDiff.toLocaleString('en-IN')} below market`
-                      : `₹${Math.abs(priceDiff).toLocaleString('en-IN')} above market`})
-                  </span>
-                </div>
-                <p className={`text-xs mt-2 ${isDeal ? 'text-green-600' : 'text-orange-600'}`}>
-                  {isDeal ? 'This is a good deal! Below fair market value.' : 'Priced above fair market value. You may negotiate.'}
-                </p>
+                {mlLoading ? (
+                  <div className="animate-pulse space-y-2">
+                    <div className="h-8 bg-slate-200 rounded w-2/5" />
+                    <div className="h-4 bg-slate-200 rounded w-3/5" />
+                    <div className="h-3 bg-slate-200 rounded w-1/2" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-baseline gap-3 mb-2">
+                      <span className="text-3xl font-black text-slate-900">{formatPrice(car.price)}</span>
+                      <span className="text-slate-500 text-sm">Listed Price</span>
+                    </div>
+                    <div className={`flex items-center gap-2 text-sm font-semibold ${isDeal ? 'text-green-700' : 'text-orange-700'}`}>
+                      <TrendingUp size={15} />
+                      AI Fair Value: {formatPrice(liveMlPrice!)}
+                      <span className="font-normal text-slate-500">
+                        ({isDeal
+                          ? `₹${priceDiff.toLocaleString('en-IN')} below market`
+                          : `₹${Math.abs(priceDiff).toLocaleString('en-IN')} above market`})
+                      </span>
+                    </div>
+                    {mlPrediction && (
+                      <p className="text-xs text-slate-500 mt-1">
+                        Confidence range: {formatPrice(mlPrediction.confidenceLow)} – {formatPrice(mlPrediction.confidenceHigh)}
+                      </p>
+                    )}
+                    <p className={`text-xs mt-2 ${isDeal ? 'text-green-600' : 'text-orange-600'}`}>
+                      {isDeal ? 'This is a good deal! Below fair market value.' : 'Priced above fair market value. You may negotiate.'}
+                    </p>
+                  </>
+                )}
               </div>
             )}
 

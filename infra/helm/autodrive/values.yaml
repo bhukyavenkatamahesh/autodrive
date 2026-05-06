@@ -77,6 +77,27 @@ frontend:
     max: 4
     cpuAverage: 75
 
+reviews:
+  enabled: true
+  image:
+    repository: autodrive-reviews
+    tag: latest
+  replicaCount: 2
+  port: 4002
+  sentimentApiUrl: "https://autodrive-ml-samarth.azurewebsites.net/sentiment"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+  hpa:
+    enabled: true
+    min: 2
+    max: 5
+    cpuAverage: 70
+
 ingress:
   enabled: true
   className: nginx
