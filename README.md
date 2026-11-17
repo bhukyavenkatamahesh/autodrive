@@ -7,11 +7,7 @@ production-grade cloud stack.
 **Chatbot (Ashad):** https://autodrive-chatbot.azurewebsites.net
 **ML service (Samarth):** https://autodrive-ml-samarth.azurewebsites.net (Swagger: `/docs`)
 
-Built for the Cloud Computing course at IIT Delhi by:
-**Venkata Mahesh** (frontend, auth, cars, reviews, infra) ·
-**Ashad** (RAG chatbot) ·
-**Samarth** (ML price + sentiment) ·
-**Pritam** (backend support)
+
 
 ---
 
